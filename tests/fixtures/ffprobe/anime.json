@@ -1,0 +1,54 @@
+{
+  "streams": [
+    {
+      "index": 0,
+      "codec_type": "video",
+      "codec_name": "h264",
+      "profile": "High",
+      "width": 1920,
+      "height": 1080,
+      "r_frame_rate": "24000/1001",
+      "avg_frame_rate": "24000/1001",
+      "pix_fmt": "yuv420p"
+    },
+    {
+      "index": 1,
+      "codec_type": "audio",
+      "codec_name": "flac",
+      "channels": 2,
+      "tags": { "language": "jpn", "DISPOSITION:default": "1" }
+    },
+    {
+      "index": 2,
+      "codec_type": "audio",
+      "codec_name": "aac",
+      "channels": 2,
+      "tags": { "language": "eng" }
+    },
+    {
+      "index": 3,
+      "codec_type": "subtitle",
+      "codec_name": "ass",
+      "tags": { "language": "eng" }
+    },
+    {
+      "index": 4,
+      "codec_type": "subtitle",
+      "codec_name": "ass",
+      "tags": { "language": "jpn" }
+    },
+    {
+      "index": 5,
+      "codec_type": "attachment",
+      "tags": { "filename": "font.ttf" }
+    }
+  ],
+  "chapters": [],
+  "format": {
+    "filename": "/media/anime/show_07.mkv",
+    "format_name": "matroska,webm",
+    "duration": "1440.000000",
+    "size": "1073741824",
+    "bit_rate": "5961000"
+  }
+}

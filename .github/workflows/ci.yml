@@ -1,0 +1,129 @@
+name: CI
+
+on:
+  push:
+    branches: ["main", "feat/**", "fix/**", "chore/**"]
+  pull_request:
+    branches: ["main"]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  ci:
+    name: "CI — Node ${{ matrix.node-version }} on ${{ matrix.os }}"
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # Primary: ubuntu-latest, Node 22 and 24
+          - os: ubuntu-latest
+            node-version: "22"
+          - os: ubuntu-latest
+            node-version: "24"
+          # Cover FFmpeg 4.4 from apt on Ubuntu 22.04
+          - os: ubuntu-22.04
+            node-version: "22"
+          # Secondary: macOS
+          - os: macos-latest
+            node-version: "22"
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js ${{ matrix.node-version }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node-version }}
+          cache: "npm"
+
+      - name: Install FFmpeg (Linux only)
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y ffmpeg
+          echo "--- FFmpeg version on ${{ matrix.os }} ---"
+          ffmpeg -version
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Format check
+        run: npm run format:check
+
+      - name: Unit tests
+        run: npm test
+
+      - name: Build
+        run: npm run build
+
+      - name: Verify shebang and executable bit
+        if: runner.os != 'Windows'
+        run: |
+          head -1 dist/bin/prestron.js | grep -q '#!/usr/bin/env node' || \
+            (echo "ERROR: shebang missing from dist/bin/prestron.js" && exit 1)
+          test -x dist/bin/prestron.js || \
+            (echo "ERROR: dist/bin/prestron.js is not executable" && exit 1)
+          echo "✓ shebang and executable bit OK"
+
+      - name: Smoke test — --version
+        run: node dist/bin/prestron.js --version
+
+      - name: Global install smoke test
+        shell: bash
+        run: |
+          PACK_FILE=$(npm pack --pack-destination /tmp 2>/dev/null | tail -1)
+          INSTALL_DIR=$(mktemp -d)
+          npm install -g "$PACK_FILE" --prefix "$INSTALL_DIR"
+          "$INSTALL_DIR/bin/prestron" --version
+          "$INSTALL_DIR/bin/pme" --version
+          echo "✓ Global install smoke test passed"
+
+      - name: npm audit
+        run: npm audit --audit-level=high
+        continue-on-error: true # Advisory only during development; tightened in M5
+
+  # Integration tests run separately (require ffmpeg, slower)
+  integration:
+    name: "Integration — Node ${{ matrix.node-version }} on ${{ matrix.os }}"
+    runs-on: ${{ matrix.os }}
+    if: github.ref == 'refs/heads/main' || github.event_name == 'pull_request'
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            node-version: "22"
+          - os: ubuntu-22.04
+            node-version: "22" # FFmpeg 4.4 from apt
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js ${{ matrix.node-version }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node-version }}
+          cache: "npm"
+
+      - name: Install FFmpeg
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y ffmpeg
+          ffmpeg -version
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Integration tests
+        run: npm run test:integration

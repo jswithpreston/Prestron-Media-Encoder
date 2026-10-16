@@ -1,0 +1,46 @@
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+*.tsbuildinfo
+
+# Secrets / environment
+.env
+.env.*
+!.env.example
+
+# Test coverage
+coverage/
+
+# SQLite databases (local state)
+*.sqlite
+*.sqlite-wal
+*.sqlite-shm
+
+# OS junk
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Editor directories
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# npm pack artifacts
+*.tgz
+
+# Logs
+*.log
+logs/
+
+# Changeset output
+.changeset/*.md
+!.changeset/README.md
+!.changeset/config.json
+
+
+.kiro
