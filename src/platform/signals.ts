@@ -24,6 +24,16 @@ export function registerCleanup(fn: CleanupFn): void {
 }
 
 /**
+ * Unregister a previously registered cleanup callback.
+ */
+export function unregisterCleanup(fn: CleanupFn): void {
+  const idx = cleanupFns.indexOf(fn);
+  if (idx !== -1) {
+    cleanupFns.splice(idx, 1);
+  }
+}
+
+/**
  * Run all registered cleanup callbacks.
  * Idempotent — safe to call multiple times; only executes once.
  */

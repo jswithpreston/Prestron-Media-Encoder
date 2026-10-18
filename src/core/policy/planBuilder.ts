@@ -5,10 +5,12 @@
  * that fully describes what ffmpeg will do. --dry-run simply prints this plan.
  */
 
-import { basename, dirname, join } from "node:path";
+import { dirname, join } from "node:path";
 import type { FfmpegCapabilities } from "../ffmpeg/capabilities.js";
 import type { MediaInfo } from "../probe/index.js";
 import type { ClassificationResult } from "../classifier/index.js";
+import type { ParsedEpisode } from "../scanner/episodeParser.js";
+import { buildOutputName } from "../naming/index.js";
 import { type Profile, type ProfileName, PROFILES } from "./profiles.js";
 
 // ---------------------------------------------------------------------------
@@ -26,6 +28,8 @@ export interface PlanOptions {
   /** Embed 'Encoded by PrestonCash' in output metadata. Default: true. */
   brandingEnabled?: boolean | undefined;
   dryRun?: boolean | undefined;
+  episode?: ParsedEpisode | null | undefined;
+  namingTemplate?: string | undefined;
 }
 
 export interface EncodePlan {
@@ -150,14 +154,16 @@ export function buildPlan(
   reasons.push(...classification.reasons);
 
   // --- Output paths ---
-  // For M1 (dry-run), output goes in a Prestron-Encoded/ dir beside the source.
-  // Naming templates (M2) will replace the simple stem-based name below.
+  // Encoded files go in Prestron-Encoded/ inside the source file's own parent folder.
   const sourceDir = dirname(mediaInfo.path);
-  const stem = basename(mediaInfo.path, ".mkv").replace(/\.(mp4|m4v|avi|mov|ts|webm|wmv)$/i, "");
   const outputDir = join(sourceDir, "Prestron-Encoded");
-  const outputName = `${stem}.mkv`;
+  const outputName = buildOutputName({
+    mediaInfo,
+    episode: options?.episode,
+    template: options?.namingTemplate,
+  });
   const outputFile = join(outputDir, outputName);
-  const partFile = outputFile + ".part";
+  const partFile = `${outputFile}.part`;
 
   return {
     sourceFile: mediaInfo.path,

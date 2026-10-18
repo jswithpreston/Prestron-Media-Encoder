@@ -14,7 +14,8 @@ import type { ParsedEpisode } from "../scanner/episodeParser.js";
 
 export interface NamingContext {
   mediaInfo: MediaInfo;
-  episode?: ParsedEpisode | null;
+  episode?: ParsedEpisode | null | undefined;
+  template?: string | undefined;
 }
 
 // ---------------------------------------------------------------------------
@@ -38,13 +39,20 @@ export function sanitizeFilename(name: string): string {
   let safe = name.replace(/[/\\:*?"<>|]/g, "-");
   // Collapse multiple spaces/dashes introduced by replacements
   safe = safe.replace(/\s{2,}/g, " ").replace(/-{2,}/g, "-");
-  safe = safe.trim();
+  safe = safe
+    .trim()
+    .replace(/^[-\s]+|[-\s]+$/g, "")
+    .trim();
 
   // Enforce 200 UTF-8 byte limit (slice on Buffer to avoid splitting multi-byte chars)
   const buf = Buffer.from(safe, "utf8");
   if (buf.byteLength > 200) {
     // Slice to 200 bytes, then decode — may strip a trailing partial char
-    safe = buf.subarray(0, 200).toString("utf8").replace(/\ufffd$/, "").trim();
+    safe = buf
+      .subarray(0, 200)
+      .toString("utf8")
+      .replace(/\ufffd$/, "")
+      .trim();
   }
 
   return safe;
@@ -124,12 +132,11 @@ export function buildOutputName(ctx: NamingContext): string {
   const { mediaInfo, episode } = ctx;
   const { video } = mediaInfo;
 
-  const hasEpisode =
-    episode != null && episode.season > 0 && episode.episode > 0;
+  const hasEpisode = episode != null && episode.season > 0 && episode.episode > 0;
 
   // Determine title: prefer episode show name, then format tags
   let rawTitle = "";
-  if (hasEpisode && episode != null) {
+  if (hasEpisode) {
     rawTitle = episode.show;
   } else {
     rawTitle =
@@ -153,15 +160,16 @@ export function buildOutputName(ctx: NamingContext): string {
   const tokens: Record<string, string> = {
     title,
     year: extractYear(mediaInfo),
-    season: hasEpisode && episode != null ? String(episode.season) : "1",
-    episode: hasEpisode && episode != null ? String(episode.episode) : "1",
+    season: hasEpisode ? String(episode.season) : "1",
+    episode: hasEpisode ? String(episode.episode) : "1",
     height: String(video.height),
     width: String(video.width),
     video_codec: video.codec,
     ext: "mkv",
   };
 
-  const template = hasEpisode ? SERIES_TEMPLATE : MOVIE_TEMPLATE;
-  const rawName = applyTemplate(template, tokens);
+  const template = ctx.template ?? (hasEpisode ? SERIES_TEMPLATE : MOVIE_TEMPLATE);
+  let rawName = applyTemplate(template, tokens);
+  rawName = rawName.replace(/\(\s*\)/g, "").replace(/\[\s*\]/g, "");
   return sanitizeFilename(rawName);
 }

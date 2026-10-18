@@ -151,6 +151,39 @@ class SqliteJournalStore implements JournalStore {
     return rows.map(rowToJob);
   }
 
+  getJobsForRoot(rootPath: string): Job[] {
+    const rows = this.db
+      .prepare(
+        `SELECT j.* FROM jobs j
+         JOIN batches b ON b.id = j.batch_id
+         WHERE b.root_path = ?
+         ORDER BY j.rowid`,
+      )
+      .all(rootPath) as Record<string, unknown>[];
+    return rows.map(rowToJob);
+  }
+
+  findJobBySourcePath(sourcePath: string): Job | undefined {
+    const row = this.db
+      .prepare(`SELECT * FROM jobs WHERE source_path = ? ORDER BY rowid DESC LIMIT 1`)
+      .get(sourcePath) as Record<string, unknown> | undefined;
+    return row ? rowToJob(row) : undefined;
+  }
+
+  resetJobToPending(id: string): void {
+    this.db
+      .prepare(
+        `UPDATE jobs
+         SET state = 'pending',
+             attempts = attempts + 1,
+             error = NULL,
+             finished_at = NULL,
+             output_size = NULL
+         WHERE id = ?`,
+      )
+      .run(id);
+  }
+
   transitionJobState(
     id: string,
     from: JobState,

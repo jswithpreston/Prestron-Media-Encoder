@@ -261,4 +261,66 @@ describe("sqliteJournalStore — transitionJobState", () => {
     s.transitionJobState(job.id, "encoding", "failed", { error: "decode test failed" });
     expect(s.getJob(job.id)?.error).toBe("decode test failed");
   });
+
+  it("getJobsForRoot returns all jobs matching root path across batches", () => {
+    const s = makeStore();
+    const b1 = s.createBatch({
+      rootPath: "/media/shows",
+      createdAt: 1000,
+      status: "done",
+      optionsJson: "{}",
+    });
+    const b2 = s.createBatch({
+      rootPath: "/media/shows",
+      createdAt: 2000,
+      status: "active",
+      optionsJson: "{}",
+    });
+    const b3 = s.createBatch({
+      rootPath: "/media/movies",
+      createdAt: 3000,
+      status: "active",
+      optionsJson: "{}",
+    });
+
+    s.createJob({ ...makeJobData(b1.id), sourcePath: "/media/shows/ep1.mkv" });
+    s.createJob({ ...makeJobData(b2.id), sourcePath: "/media/shows/ep2.mkv" });
+    s.createJob({ ...makeJobData(b3.id), sourcePath: "/media/movies/movie1.mkv" });
+
+    const showJobs = s.getJobsForRoot("/media/shows");
+    expect(showJobs.length).toBe(2);
+    expect(showJobs.map((j) => j.sourcePath)).toEqual(["/media/shows/ep1.mkv", "/media/shows/ep2.mkv"]);
+  });
+
+  it("findJobBySourcePath returns the latest job for a source path", () => {
+    const s = makeStore();
+    const batch = makeBatch(s);
+    s.createJob({ ...makeJobData(batch.id), sourcePath: "/media/shows/ep1.mkv" });
+    const found = s.findJobBySourcePath("/media/shows/ep1.mkv");
+    expect(found).toBeDefined();
+    expect(found?.sourcePath).toBe("/media/shows/ep1.mkv");
+
+    expect(s.findJobBySourcePath("/nonexistent.mkv")).toBeUndefined();
+  });
+
+  it("resetJobToPending resets state, increments attempts, and clears error/output", () => {
+    const s = makeStore();
+    const batch = makeBatch(s);
+    const job = s.createJob(makeJobData(batch.id));
+    s.transitionJobState(job.id, "pending", "encoding");
+    s.transitionJobState(job.id, "encoding", "failed", {
+      error: "crashed",
+      finishedAt: 5000,
+      outputSize: 1234,
+    });
+
+    s.resetJobToPending(job.id);
+    const reset = s.getJob(job.id);
+    expect(reset?.state).toBe("pending");
+    expect(reset?.attempts).toBe(1);
+    expect(reset?.error).toBeUndefined();
+    expect(reset?.finishedAt).toBeUndefined();
+    expect(reset?.outputSize).toBeUndefined();
+  });
 });
+

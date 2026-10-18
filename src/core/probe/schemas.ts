@@ -69,6 +69,8 @@ export const ChapterSchema = z
     id: z.number().optional(),
     start: z.number().optional(),
     end: z.number().optional(),
+    start_time: z.string().optional(),
+    end_time: z.string().optional(),
     tags: z.record(z.string()).optional(),
   })
   .passthrough();

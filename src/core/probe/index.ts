@@ -59,6 +59,13 @@ export interface SubtitleInfo {
   language?: string;
 }
 
+export interface ChapterInfo {
+  id?: number;
+  startTimeSecs: number;
+  endTimeSecs: number;
+  title?: string;
+}
+
 export interface MediaInfo {
   path: string;
   container: string;
@@ -70,6 +77,7 @@ export interface MediaInfo {
   subtitles: SubtitleInfo[];
   attachmentCount: number;
   chapterCount: number;
+  chapters: ChapterInfo[];
   tags: Record<string, string>;
 }
 
@@ -277,6 +285,19 @@ export async function probeFile(
   const container = fmt?.format_name ?? "unknown";
   const tags: Record<string, string> = fmt?.tags ?? {};
 
+  // --- Chapters ---
+  const chapters: ChapterInfo[] = data.chapters.map((ch) => {
+    const startTimeSecs = ch.start_time ? parseFloat(ch.start_time) : (ch.start ?? 0);
+    const endTimeSecs = ch.end_time ? parseFloat(ch.end_time) : (ch.end ?? 0);
+    const title = ch.tags?.["title"] ?? ch.tags?.["TITLE"];
+    return {
+      ...(ch.id !== undefined ? { id: ch.id } : {}),
+      startTimeSecs,
+      endTimeSecs,
+      ...(title !== undefined ? { title } : {}),
+    };
+  });
+
   return {
     path: filePath,
     container,
@@ -288,6 +309,7 @@ export async function probeFile(
     subtitles: subtitleInfo,
     attachmentCount,
     chapterCount: data.chapters.length,
+    chapters,
     tags,
   };
 }

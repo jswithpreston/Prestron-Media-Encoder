@@ -167,9 +167,7 @@ export function classify(input: ClassifierInput): ClassificationResult {
 
   // Any ancestor directory in the full path is a season folder
   const pathSegments = input.filePath.split(/[/\\]/);
-  const hasSeasonAncestor = pathSegments.some((seg) =>
-    /^(?:Season|Series)\s*\d{1,2}$/i.test(seg),
-  );
+  const hasSeasonAncestor = pathSegments.some((seg) => /^(?:Season|Series)\s*\d{1,2}$/i.test(seg));
   if (hasSeasonAncestor && !/^(?:Season|Series)\s*\d{1,2}$/i.test(parentDir)) {
     // Only count once — parent was already counted above if it matched
     seriesScore += SERIES_MEDIUM;
@@ -302,10 +300,7 @@ export function classify(input: ClassifierInput): ClassificationResult {
  * Build human-readable notes about conflicting signals from other categories.
  * These are appended to reasons[] so the user understands the confidence cap.
  */
-function buildConflictNotes(
-  winner: MediaKind,
-  ...oppsingCounts: number[]
-): string[] {
+function buildConflictNotes(winner: MediaKind, ...oppsingCounts: number[]): string[] {
   const total = oppsingCounts.reduce((a, b) => a + b, 0);
   if (total === 0) return [];
   const penalty = total * CONFLICT_PENALTY;

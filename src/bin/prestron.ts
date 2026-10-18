@@ -26,7 +26,12 @@ import {
   EXIT_CODE_FFMPEG,
   type ProcessRunner,
 } from "../core/ffmpeg/capabilities.js";
-import { makeScanCommand, makeAnalyzeCommand, makeEncodeCommand } from "../cli/index.js";
+import {
+  makeScanCommand,
+  makeAnalyzeCommand,
+  makeEncodeCommand,
+  makeResumeCommand,
+} from "../cli/index.js";
 
 registerSignalHandlers();
 
@@ -108,7 +113,8 @@ async function main(): Promise<void> {
     .description("Batch-encode movies, TV series and anime to HEVC using FFmpeg")
     .addCommand(makeScanCommand())
     .addCommand(makeAnalyzeCommand())
-    .addCommand(makeEncodeCommand());
+    .addCommand(makeEncodeCommand())
+    .addCommand(makeResumeCommand());
 
   // Parse — commander handles --help automatically
   await program.parseAsync(process.argv);

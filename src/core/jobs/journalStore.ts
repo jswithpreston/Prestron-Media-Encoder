@@ -62,6 +62,15 @@ export interface JournalStore {
   /** Fetch all jobs belonging to a batch, ordered by rowid. */
   getJobsForBatch(batchId: string): Job[];
 
+  /** Fetch all jobs associated with a given root path across all batches. */
+  getJobsForRoot(rootPath: string): Job[];
+
+  /** Find the most recent job record for a given source file path. */
+  findJobBySourcePath(sourcePath: string): Job | undefined;
+
+  /** Reset an interrupted, crashed, or missing-output job back to pending state. */
+  resetJobToPending(id: string): void;
+
   /**
    * Atomically transition a job's state.
    *

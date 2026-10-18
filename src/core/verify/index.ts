@@ -7,7 +7,7 @@
  */
 
 import { stat } from "node:fs/promises";
-import { probeFile } from "../probe/index.js";
+import { probeFile, type ChapterInfo } from "../probe/index.js";
 import type { ProcessRunner } from "../ffmpeg/capabilities.js";
 
 // ---------------------------------------------------------------------------
@@ -23,6 +23,8 @@ export interface VerifyOptions {
   sourceSubtitleCount: number;
   /** Number of chapters in the source. */
   sourceChapterCount: number;
+  /** Optional source chapters with timestamps for tolerance checking. */
+  sourceChapters?: ChapterInfo[] | undefined;
   /** Whether the source has HDR signaling. */
   sourceIsHdr: boolean;
   /** Source video width. */
@@ -81,7 +83,7 @@ export async function verifyOutput(
   }
 
   // --- Check 3: video stream present ---
-  if (!outInfo.video || outInfo.video.codec === "unknown") {
+  if (outInfo.video.codec === "unknown") {
     return { ok: false, failedCheck: "no-video-stream" };
   }
 
@@ -103,6 +105,24 @@ export async function verifyOutput(
   // --- Check 7: chapter count ---
   if (outInfo.chapterCount !== opts.sourceChapterCount) {
     return { ok: false, failedCheck: "chapter-count-mismatch" };
+  }
+
+  // --- Check 7b: chapter timestamps within 100 ms tolerance ---
+  if (opts.sourceChapters && opts.sourceChapters.length > 0) {
+    const CHAPTER_TOLERANCE_SECS = 0.1;
+    for (let i = 0; i < opts.sourceChapters.length; i++) {
+      const srcChap = opts.sourceChapters[i];
+      const outChap = outInfo.chapters[i];
+      if (!srcChap || !outChap) {
+        return { ok: false, failedCheck: "chapter-timestamp-mismatch" };
+      }
+      if (
+        Math.abs(outChap.startTimeSecs - srcChap.startTimeSecs) > CHAPTER_TOLERANCE_SECS ||
+        Math.abs(outChap.endTimeSecs - srcChap.endTimeSecs) > CHAPTER_TOLERANCE_SECS
+      ) {
+        return { ok: false, failedCheck: "chapter-timestamp-mismatch" };
+      }
+    }
   }
 
   // --- Check 8: duration within tolerance ---

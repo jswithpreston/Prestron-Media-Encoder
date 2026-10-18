@@ -52,15 +52,43 @@ export function getXdgPaths(): XdgPaths {
   };
 }
 
+import { tmpdir } from "node:os";
+
 /**
  * Returns XDG paths and ensures the directories exist.
  * Safe to call multiple times (uses mkdirSync with recursive:true).
+ * If user HOME is read-only or inaccessible, falls back gracefully to /tmp/prestron.
  */
 export function getXdgPathsEnsured(): XdgPaths {
   const paths = getXdgPaths();
   const dirs: string[] = [paths.data, paths.config, paths.log, paths.cache, paths.temp];
-  for (const dir of dirs) {
-    mkdirSync(dir, { recursive: true });
+  try {
+    for (const dir of dirs) {
+      mkdirSync(dir, { recursive: true });
+    }
+    return paths;
+  } catch {
+    const fallbackBase = join(tmpdir(), "prestron");
+    const fallbackPaths: XdgPaths = {
+      data: join(fallbackBase, "data"),
+      config: join(fallbackBase, "config"),
+      log: join(fallbackBase, "log"),
+      cache: join(fallbackBase, "cache"),
+      temp: join(fallbackBase, "temp"),
+    };
+    for (const fDir of [
+      fallbackPaths.data,
+      fallbackPaths.config,
+      fallbackPaths.log,
+      fallbackPaths.cache,
+      fallbackPaths.temp,
+    ]) {
+      try {
+        mkdirSync(fDir, { recursive: true });
+      } catch {
+        /* ignore */
+      }
+    }
+    return fallbackPaths;
   }
-  return paths;
 }
