@@ -16,6 +16,6 @@ describe("runEncode", () => {
       ffmpegBinary: "non_existent_ffmpeg_binary_xyz",
     });
     expect(result.ok).toBe(false);
-    expect(result.error).toContain("ENOENT");
+    expect(result.error).toMatch(/ENOENT|not recognized/);
   });
 });

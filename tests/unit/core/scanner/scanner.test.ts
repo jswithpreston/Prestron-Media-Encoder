@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import { mkdtemp, mkdir, writeFile, symlink, rm } from "node:fs/promises";
-import { join } from "node:path";
+import { join, basename, sep } from "node:path";
 import { tmpdir } from "node:os";
 import { scanDirectory } from "../../../../src/core/scanner/index.js";
 
@@ -49,7 +49,7 @@ afterAll(async () => {
 describe("scanDirectory", () => {
   it("finds video files with correct extensions", async () => {
     const result = await scanDirectory(tmpDir);
-    const names = result.files.map((f) => f.path.split("/").pop());
+    const names = result.files.map((f) => basename(f.path));
     expect(names).toContain("Show.Name.S01E01.mkv");
     expect(names).toContain("Show.Name.S01E02.mkv");
     expect(names).toContain("Show.Name.S01E03.avi");
@@ -59,20 +59,20 @@ describe("scanDirectory", () => {
 
   it("ignores the Prestron-Encoded directory", async () => {
     const result = await scanDirectory(tmpDir);
-    const inEncoded = result.files.filter((f) => f.path.includes("Prestron-Encoded"));
+    const inEncoded = result.files.filter((f) => f.path.includes(`Prestron-Encoded${sep}`) || f.path.includes("Prestron-Encoded"));
     expect(inEncoded).toHaveLength(0);
     expect(result.ignoredCount).toBeGreaterThanOrEqual(1);
   });
 
   it("ignores the sample directory", async () => {
     const result = await scanDirectory(tmpDir);
-    const inSample = result.files.filter((f) => f.path.includes("/sample/"));
+    const inSample = result.files.filter((f) => f.path.includes(`sample${sep}`) || f.path.includes("/sample/"));
     expect(inSample).toHaveLength(0);
   });
 
   it("ignores hidden directories", async () => {
     const result = await scanDirectory(tmpDir);
-    const inHidden = result.files.filter((f) => f.path.includes("/."));
+    const inHidden = result.files.filter((f) => f.path.includes(`${sep}.`) || f.path.includes("/."));
     expect(inHidden).toHaveLength(0);
   });
 
@@ -81,7 +81,7 @@ describe("scanDirectory", () => {
     // symlinkCount should be >= 0 (1 if symlinks are supported in this env)
     expect(result.symlinkCount).toBeGreaterThanOrEqual(0);
     // The symlink.mkv should NOT appear as a regular file
-    const names = result.files.map((f) => f.path.split("/").pop());
+    const names = result.files.map((f) => basename(f.path));
     expect(names).not.toContain("symlink.mkv");
   });
 
@@ -122,7 +122,7 @@ describe("scanDirectory", () => {
     });
     await writeFile(join(tmpDir, "extras", "bonus.mkv"), "bonus");
     const result = await scanDirectory(tmpDir, { extraIgnoreDirs: ["extras"] });
-    const inExtras = result.files.filter((f) => f.path.includes("/extras/"));
+    const inExtras = result.files.filter((f) => f.path.includes(`extras${sep}`) || f.path.includes("/extras/"));
     expect(inExtras).toHaveLength(0);
   });
 });
