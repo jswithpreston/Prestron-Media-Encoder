@@ -7,3 +7,5 @@ export { makeScanCommand } from "./scan.js";
 export { makeAnalyzeCommand } from "./analyze.js";
 export { makeEncodeCommand } from "./encode.js";
 export { makeResumeCommand } from "./resume.js";
+export { makeReportCommand } from "./report.js";
+export { makeProfilesCommand } from "./profiles.js";
