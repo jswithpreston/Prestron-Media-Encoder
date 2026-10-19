@@ -1,6 +1,6 @@
 {
   "name": "prestron-media-encoder",
-  "version": "0.1.0",
+  "version": "0.1.0-alpha.0",
   "description": "Interactive CLI tool for batch-encoding movies, TV series and anime to HEVC using FFmpeg — without ever risking your originals.",
   "type": "module",
   "engines": {
