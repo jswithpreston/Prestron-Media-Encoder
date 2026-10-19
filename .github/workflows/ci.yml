@@ -83,7 +83,7 @@ jobs:
         run: |
           PACK_FILE=$(npm pack --pack-destination /tmp 2>/dev/null | tail -1)
           INSTALL_DIR=$(mktemp -d)
-          npm install -g "$PACK_FILE" --prefix "$INSTALL_DIR"
+          npm install -g "/tmp/${PACK_FILE}" --prefix "$INSTALL_DIR"
           "$INSTALL_DIR/bin/prestron" --version
           "$INSTALL_DIR/bin/pme" --version
           echo "✓ Global install smoke test passed"
