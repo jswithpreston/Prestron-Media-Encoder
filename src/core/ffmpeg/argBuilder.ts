@@ -39,9 +39,14 @@ export function buildArgs(plan: EncodePlan, _caps: FfmpegCapabilities): string[]
     "0",
     "-map_metadata",
     "0",
-    "-c",
-    "copy",
   ];
+
+  // Per-type stream copy: every non-video stream is copied untouched.
+  // Video is overridden below when videoAction === "encode".
+  args.push("-c:a", "copy");
+  args.push("-c:s", "copy");
+  args.push("-c:t", "copy");
+  args.push("-c:v", "copy");
 
   if (plan.videoAction === "encode") {
     args.push(

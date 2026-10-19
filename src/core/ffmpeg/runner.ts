@@ -26,6 +26,9 @@ export interface EncodeRunOptions {
   ffmpegBinary?: string | undefined;
   /** Source duration in seconds, used to compute percentDone. */
   sourceDurationSecs?: number | undefined;
+  /** Called synchronously right after the ffmpeg child is spawned, with its PID.
+   * Allows the caller to record the PID for orphan-process cleanup on kill -9. */
+  onChildStart?: ((pid: number) => void) | undefined;
 }
 
 export interface EncodeResult {
@@ -34,6 +37,8 @@ export interface EncodeResult {
   durationMs: number;
   /** Size of the output .part file after encode, 0 if not found. */
   outputSizeBytes: number;
+  /** PID of the ffmpeg child process (for orphan cleanup on kill -9). */
+  ffmpegPid: number;
   /** Last stderr lines (for error reporting). */
   error?: string | undefined;
 }
@@ -68,6 +73,12 @@ export async function runEncode(args: string[], opts?: EncodeRunOptions): Promis
     stdout: "pipe",
     stderr: "pipe",
   });
+
+  // Report the child PID synchronously so the caller can record it for
+  // orphan-process cleanup (kill -9 recovery).
+  if (opts?.onChildStart) {
+    opts.onChildStart(child.pid ?? 0);
+  }
 
   // Wire up abort signal → SIGTERM → SIGKILL
   const abortHandler = () => {
@@ -107,6 +118,7 @@ export async function runEncode(args: string[], opts?: EncodeRunOptions): Promis
   });
 
   let result: Awaited<typeof child>;
+  const ffmpegPid = child.pid ?? 0;
   try {
     result = await child;
   } finally {
@@ -137,13 +149,16 @@ export async function runEncode(args: string[], opts?: EncodeRunOptions): Promis
     // File was deleted (abort/failure) or never created
   }
 
-  const errorText = stderrChunks.join("").trim();
+  const errorText =
+    stderrChunks.join("").trim() ||
+    (result.failed ? (result.shortMessage ?? "Process failed") : "");
 
   return {
     ok: exitCode === 0 && !wasAborted,
     exitCode,
     durationMs,
     outputSizeBytes,
+    ffmpegPid,
     ...(errorText ? { error: errorText } : {}),
   };
 }

@@ -35,6 +35,8 @@ export interface Job {
   startedAt?: number;
   finishedAt?: number;
   outputSize?: number;
+  /** PID of the ffmpeg child process while this job is encoding (set at runtime). */
+  ffmpegPid?: number;
 }
 
 export interface JournalStore {
@@ -85,7 +87,12 @@ export interface JournalStore {
     id: string,
     from: JobState,
     to: JobState,
-    updates?: Partial<Pick<Job, "error" | "startedAt" | "finishedAt" | "outputSize" | "attempts">>,
+    updates?: Partial<
+      Pick<
+        Job,
+        "error" | "startedAt" | "finishedAt" | "outputSize" | "attempts" | "ffmpegPid"
+      >
+    >,
   ): void;
 
   /**

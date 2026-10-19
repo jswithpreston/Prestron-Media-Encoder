@@ -289,7 +289,10 @@ describe("sqliteJournalStore — transitionJobState", () => {
 
     const showJobs = s.getJobsForRoot("/media/shows");
     expect(showJobs.length).toBe(2);
-    expect(showJobs.map((j) => j.sourcePath)).toEqual(["/media/shows/ep1.mkv", "/media/shows/ep2.mkv"]);
+    expect(showJobs.map((j) => j.sourcePath)).toEqual([
+      "/media/shows/ep1.mkv",
+      "/media/shows/ep2.mkv",
+    ]);
   });
 
   it("findJobBySourcePath returns the latest job for a source path", () => {
@@ -323,4 +326,3 @@ describe("sqliteJournalStore — transitionJobState", () => {
     expect(reset?.outputSize).toBeUndefined();
   });
 });
-

@@ -49,7 +49,8 @@ CREATE TABLE IF NOT EXISTS jobs (
   error           TEXT,
   started_at      INTEGER,
   finished_at     INTEGER,
-  output_size     INTEGER
+  output_size     INTEGER,
+  ffmpeg_pid      INTEGER
 );
 
 CREATE INDEX IF NOT EXISTS idx_jobs_batch ON jobs(batch_id);
@@ -117,8 +118,8 @@ class SqliteJournalStore implements JournalStore {
       .prepare(
         `INSERT INTO jobs
            (id, batch_id, source_path, source_size, source_mtime_ms, output_path,
-            state, plan_json, attempts, error, started_at, finished_at, output_size)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+            state, plan_json, attempts, error, started_at, finished_at, output_size, ffmpeg_pid)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       )
       .run(
         id,
@@ -134,6 +135,7 @@ class SqliteJournalStore implements JournalStore {
         job.startedAt ?? null,
         job.finishedAt ?? null,
         job.outputSize ?? null,
+        job.ffmpegPid ?? null,
       );
     return { ...job, id };
   }
@@ -188,7 +190,12 @@ class SqliteJournalStore implements JournalStore {
     id: string,
     from: JobState,
     to: JobState,
-    updates?: Partial<Pick<Job, "error" | "startedAt" | "finishedAt" | "outputSize" | "attempts">>,
+    updates?: Partial<
+      Pick<
+        Job,
+        "error" | "startedAt" | "finishedAt" | "outputSize" | "attempts" | "ffmpegPid"
+      >
+    >,
   ): void {
     // Manual transaction: BEGIN → check state → update → COMMIT (or ROLLBACK on error)
     this.db.exec("BEGIN");
@@ -212,7 +219,8 @@ class SqliteJournalStore implements JournalStore {
            started_at = COALESCE(?, started_at),
            finished_at = COALESCE(?, finished_at),
            output_size = COALESCE(?, output_size),
-           attempts = COALESCE(?, attempts)
+           attempts = COALESCE(?, attempts),
+           ffmpeg_pid = COALESCE(?, ffmpeg_pid)
            WHERE id = ?`,
         )
         .run(
@@ -222,6 +230,7 @@ class SqliteJournalStore implements JournalStore {
           updates?.finishedAt ?? null,
           updates?.outputSize ?? null,
           updates?.attempts ?? null,
+          updates?.ffmpegPid ?? null,
           id,
         );
       this.db.exec("COMMIT");
@@ -267,6 +276,7 @@ function rowToJob(row: Record<string, unknown>): Job {
   const startedAt = row["started_at"];
   const finishedAt = row["finished_at"];
   const outputSize = row["output_size"];
+  const ffmpegPid = row["ffmpeg_pid"];
   return {
     id: String(row["id"]),
     batchId: String(row["batch_id"]),
@@ -281,6 +291,7 @@ function rowToJob(row: Record<string, unknown>): Job {
     ...(startedAt != null ? { startedAt: Number(startedAt) } : {}),
     ...(finishedAt != null ? { finishedAt: Number(finishedAt) } : {}),
     ...(outputSize != null ? { outputSize: Number(outputSize) } : {}),
+    ...(ffmpegPid != null ? { ffmpegPid: Number(ffmpegPid) } : {}),
   };
 }
 

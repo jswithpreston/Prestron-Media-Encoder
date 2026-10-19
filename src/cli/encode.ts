@@ -14,8 +14,9 @@
 
 import { Command } from "commander";
 import { resolve, basename } from "node:path";
-import { rename, mkdir, unlink, stat, readFile } from "node:fs/promises";
+import { rename, mkdir, unlink, stat, readFile, open } from "node:fs/promises";
 import { createHash } from "node:crypto";
+import { constants } from "node:fs";
 import { execa } from "execa";
 import { scanDirectory } from "../core/scanner/index.js";
 import { probeFile, type MediaInfo } from "../core/probe/index.js";
@@ -29,6 +30,7 @@ import { registerCleanup, unregisterCleanup } from "../platform/signals.js";
 import { getCapabilities } from "./getCapabilities.js";
 import { openJournalStore } from "../core/jobs/journalDb.js";
 import { recoverFolder } from "../core/jobs/recovery.js";
+import { acquireInstanceLock } from "../core/jobs/instanceLock.js";
 import type { ProcessRunner, FfmpegCapabilities } from "../core/ffmpeg/capabilities.js";
 import type { ProfileName } from "../core/policy/profiles.js";
 
@@ -79,7 +81,6 @@ export interface EncodeOpts {
   preset?: string;
   force?: boolean;
   overwrite?: boolean;
-  injectVerifyFailure?: string;
   ffmpegPath: string;
   ffprobePath: string;
 }
@@ -121,13 +122,38 @@ export function makeEncodeCommand(): Command {
     .option("--preset <name>", "Override x265 preset")
     .option("--force", "Encode even if source is already HEVC/AV1/VP9")
     .option("--overwrite", "Overwrite existing output files")
-    .option("--inject-verify-failure <check>", "Inject a verification failure for testing")
     .option("--ffmpeg-path <path>", "Override ffmpeg binary path", "ffmpeg")
     .option("--ffprobe-path <path>", "Override ffprobe binary path", "ffprobe")
     .action(async (pathArg: string, opts: EncodeOpts) => {
       if (!opts.dryRun && !opts.yes) {
         console.error(
           "Specify --dry-run to preview the plan, or --yes to start encoding immediately.",
+        );
+        process.exit(2);
+      }
+
+      // --- Validate --crf / --preset ---
+      const PRESET_NAMES = [
+        "ultrafast",
+        "superfast",
+        "veryfast",
+        "faster",
+        "fast",
+        "medium",
+        "slow",
+        "slower",
+        "veryslow",
+      ];
+      if (opts.crf !== undefined) {
+        const crf = Number(opts.crf);
+        if (!Number.isInteger(crf) || crf < 0 || crf > 51) {
+          console.error(`Error: --crf must be an integer between 0 and 51, got "${opts.crf}".`);
+          process.exit(2);
+        }
+      }
+      if (opts.preset !== undefined && !PRESET_NAMES.includes(opts.preset)) {
+        console.error(
+          `Error: --preset must be one of ${PRESET_NAMES.join(", ")}, got "${opts.preset}".`,
         );
         process.exit(2);
       }
@@ -243,6 +269,18 @@ export function makeEncodeCommand(): Command {
       // -----------------------------------------------------------------------
       console.log(`\nEncoding ${String(scanResult.files.length)} file(s) in ${dir}\n`);
 
+      // Per-folder instance lock: prevent two instances encoding the same folder.
+      const lock = acquireInstanceLock(dir);
+      if (!lock.held) {
+        console.error(
+          `Error: another Prestron instance is already encoding this folder (${dir}). ` +
+            `Lock file: ${lock.lockPath}`,
+        );
+        process.exit(2);
+      }
+      // Always release the lock on exit (clean, signal, or crash).
+      registerCleanup(lock.release);
+
       // Open SQLite journal
       const store = openJournalStore();
 
@@ -255,7 +293,9 @@ export function makeEncodeCommand(): Command {
       }
       if (recoveryReport.missingOutputsRequeued.length > 0) {
         for (const p of recoveryReport.missingOutputsRequeued) {
-          console.log(`  [Recovery] Output missing for previously completed job; re-queued: ${basename(p)}`);
+          console.log(
+            `  [Recovery] Output missing for previously completed job; re-queued: ${basename(p)}`,
+          );
         }
       }
       if (recoveryReport.jobsRequeued.length > 0) {
@@ -345,6 +385,7 @@ export function makeEncodeCommand(): Command {
       let failedCount = 0;
       let skippedCount = 0;
       let totalSavedBytes = 0;
+      let totalOutputBytes = 0;
 
       for (const { plan, sourceSizeBytes, sourceMtimeMs, mediaInfo } of filePlans) {
         const name = basename(plan.sourceFile);
@@ -432,6 +473,15 @@ export function makeEncodeCommand(): Command {
             ffmpegBinary: opts.ffmpegPath,
             sourceDurationSecs: mediaInfo.durationSecs,
             signal: abortController.signal,
+            onChildStart: (pid) => {
+              try {
+                store.transitionJobState(activeJobId, "encoding", "encoding", {
+                  ffmpegPid: pid,
+                });
+              } catch {
+                /* ignore if state already changed */
+              }
+            },
             onProgress: (p) => {
               lastPercent = Math.round(p.percentDone);
               process.stdout.write(`\r  Encoding: ${name} ... ${String(lastPercent)}%  `);
@@ -487,9 +537,8 @@ export function makeEncodeCommand(): Command {
             opts.ffmpegPath,
           );
 
-          // Support injected verification failure
-          const injectedCheck =
-            opts.injectVerifyFailure ?? process.env["PRESTRON_INJECT_VERIFY_FAILURE"];
+          // Support injected verification failure (env var only — hidden from CLI help)
+          const injectedCheck = process.env["PRESTRON_INJECT_VERIFY_FAILURE"];
           if (injectedCheck) {
             verifyResult = { ok: false, failedCheck: injectedCheck };
           }
@@ -509,13 +558,38 @@ export function makeEncodeCommand(): Command {
             continue;
           }
 
-          // --- Promote: rename .part → final (atomic on same filesystem) ---
+          // --- Promote: fsync .part, then atomic rename, then fsync directory ---
+          // fsync the .part file so its contents are durable before the rename.
+          const partFh = await open(plan.partFile, "r");
+          try {
+            await partFh.sync();
+          } finally {
+            await partFh.close();
+          }
+
           await rename(plan.partFile, plan.outputFile);
+
+          // fsync the directory so the rename entry is durable.
+          try {
+            const dirFh = await open(
+              plan.estimatedOutputDir,
+              "r",
+              constants.O_RDONLY | constants.O_DIRECTORY,
+            );
+            try {
+              await dirFh.sync();
+            } finally {
+              await dirFh.close();
+            }
+          } catch {
+            // Directory fsync is best-effort durability; do not fail the encode if it fails.
+          }
 
           const outStat = await stat(plan.outputFile);
           const outputSizeBytes = outStat.size;
           const savedBytes = sourceSizeBytes - outputSizeBytes;
           totalSavedBytes += savedBytes;
+          totalOutputBytes += outputSizeBytes;
 
           // Transition to done
           store.transitionJobState(activeJobId, "verifying", "done", {
@@ -546,7 +620,7 @@ export function makeEncodeCommand(): Command {
       );
       if (doneCount > 0) {
         console.log(
-          `Total savings: ${formatSavings(totalEstimatedSource, totalEstimatedSource - totalSavedBytes)}`,
+          `Total savings: ${formatSavings(totalEstimatedSource, totalOutputBytes)}`,
         );
       }
       console.log(`Output folder: ${outputDir}`);

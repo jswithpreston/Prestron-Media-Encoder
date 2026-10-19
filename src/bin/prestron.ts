@@ -12,11 +12,11 @@ suppressSqliteExperimentalWarning();
 
 import { readFile } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
-import { dirname, join } from "node:path";
+import { dirname, join, resolve } from "node:path";
 import { Command } from "commander";
 import { execa } from "execa";
 
-import { registerSignalHandlers } from "../platform/signals.js";
+import { registerSignalHandlers, registerCleanup } from "../platform/signals.js";
 import { detectCapabilities as detectTerminal } from "../platform/capabilities.js";
 import {
   detectCapabilities as detectFfmpeg,
@@ -31,7 +31,10 @@ import {
   makeAnalyzeCommand,
   makeEncodeCommand,
   makeResumeCommand,
+  makeReportCommand,
+  makeProfilesCommand,
 } from "../cli/index.js";
+import { renderApp } from "../ui/index.js";
 
 registerSignalHandlers();
 
@@ -76,6 +79,12 @@ async function main(): Promise<void> {
     (ffmpegFlagIdx !== -1 ? args[ffmpegFlagIdx + 1] : undefined) ??
     "ffmpeg";
 
+  const ffprobeFlagIdx = args.indexOf("--ffprobe-path");
+  const ffprobePath =
+    process.env["PRESTRON_FFPROBE"] ??
+    (ffprobeFlagIdx !== -1 ? args[ffprobeFlagIdx + 1] : undefined) ??
+    "ffprobe";
+
   // Determine whether we're running a sub-command or interactive mode
   const subCommands = ["scan", "analyze", "encode", "verify", "resume", "report", "profiles"];
   const hasSubCommand = args.some((a) => subCommands.includes(a));
@@ -101,10 +110,22 @@ async function main(): Promise<void> {
       }
       throw err;
     }
-    // Interactive UI placeholder — implemented in M4
-    console.log(`Prestron Media Encoder v${version} — interactive mode coming in M4.`);
-    console.log(`Run with a sub-command for non-interactive use, e.g.: prestron --help`);
-    process.exit(0);
+
+    // Find the optional path positional argument (first non-flag arg)
+    const pathArg = args.find((a) => !a.startsWith("-")) ?? ".";
+
+    // Launch interactive Ink app
+    const cleanup = renderApp({
+      rootDir: resolve(pathArg),
+      version,
+      mouseEnabled: !args.includes("--no-mouse"),
+      ffmpegPath,
+      ffprobePath,
+    });
+
+    // Register cleanup so terminal is always restored on signal/crash
+    registerCleanup(cleanup);
+    return;
   }
 
   // Non-interactive / sub-command mode — wire up commander
@@ -114,7 +135,9 @@ async function main(): Promise<void> {
     .addCommand(makeScanCommand())
     .addCommand(makeAnalyzeCommand())
     .addCommand(makeEncodeCommand())
-    .addCommand(makeResumeCommand());
+    .addCommand(makeResumeCommand())
+    .addCommand(makeReportCommand())
+    .addCommand(makeProfilesCommand());
 
   // Parse — commander handles --help automatically
   await program.parseAsync(process.argv);
