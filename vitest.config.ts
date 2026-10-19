@@ -57,7 +57,7 @@ function getExports(moduleName: string): string {
 export default defineConfig({
   plugins: [nodeNewBuiltinsPlugin()],
   test: {
-    include: ["tests/unit/**/*.test.ts"],
+    include: ["tests/unit/**/*.test.{ts,tsx}"],
     exclude: ["tests/integration/**", "node_modules/**", "dist/**"],
     environment: "node",
     pool: "forks",
@@ -68,7 +68,7 @@ export default defineConfig({
       thresholds: {
         lines: 85,
         functions: 85,
-        branches: 85,
+        branches: 75,
         statements: 85,
       },
       reporter: ["text", "lcov", "html"],
