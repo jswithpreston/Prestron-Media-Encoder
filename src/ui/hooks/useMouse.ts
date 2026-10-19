@@ -111,8 +111,6 @@ export function useMouse(onMouse: (evt: MouseEvent) => void, disabled = false): 
       return;
     }
 
-    let mouseEnabled = false;
-
     // stdin must be in raw mode for mouse events to come through as bytes.
     // Ink sets raw mode itself, so we can rely on it being set.
     // We just need to enable mouse tracking and parse stdin.
@@ -120,7 +118,6 @@ export function useMouse(onMouse: (evt: MouseEvent) => void, disabled = false): 
     // to keyboard-only input rather than crashing.
     try {
       enableMouse();
-      mouseEnabled = true;
     } catch {
       // Mouse not supported — keyboard-only fallback
       return;
@@ -138,9 +135,7 @@ export function useMouse(onMouse: (evt: MouseEvent) => void, disabled = false): 
 
     return () => {
       process.stdin.off("data", handler);
-      if (mouseEnabled) {
-        disableMouse();
-      }
+      disableMouse();
     };
   }, [disabled, onMouse]);
 }

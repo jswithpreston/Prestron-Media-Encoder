@@ -384,7 +384,6 @@ export function makeEncodeCommand(): Command {
       let doneCount = 0;
       let failedCount = 0;
       let skippedCount = 0;
-      let totalSavedBytes = 0;
       let totalOutputBytes = 0;
 
       for (const { plan, sourceSizeBytes, sourceMtimeMs, mediaInfo } of filePlans) {
@@ -587,8 +586,6 @@ export function makeEncodeCommand(): Command {
 
           const outStat = await stat(plan.outputFile);
           const outputSizeBytes = outStat.size;
-          const savedBytes = sourceSizeBytes - outputSizeBytes;
-          totalSavedBytes += savedBytes;
           totalOutputBytes += outputSizeBytes;
 
           // Transition to done
