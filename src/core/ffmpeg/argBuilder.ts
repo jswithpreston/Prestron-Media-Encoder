@@ -41,28 +41,22 @@ export function buildArgs(plan: EncodePlan, _caps: FfmpegCapabilities): string[]
     "0",
   ];
 
-  // Per-type stream copy: every non-video stream is copied untouched.
-  // Video is overridden below when videoAction === "encode".
+  // Non-video streams are always copied untouched.
   args.push("-c:a", "copy");
   args.push("-c:s", "copy");
   args.push("-c:t", "copy");
-  args.push("-c:v", "copy");
 
+  // Exactly one -c:v: either the encoder (encode action) or copy (copy action).
+  // Never emit -c:v twice — ffmpeg warns "Option c:v specified multiple times".
   if (plan.videoAction === "encode") {
-    args.push(
-      "-c:v",
-      plan.profile.codec,
-      "-crf",
-      String(plan.profile.crf),
-      "-preset",
-      plan.profile.preset,
-      "-pix_fmt",
-      plan.profile.pixFmt,
-    );
+    args.push("-c:v", plan.profile.codec, "-crf", String(plan.profile.crf));
+    args.push("-preset", plan.profile.preset, "-pix_fmt", plan.profile.pixFmt);
     if (plan.profile.x265Params) {
       args.push("-x265-params", plan.profile.x265Params);
     }
     args.push(plan.fpsModeFlag, plan.fpsModeValue);
+  } else {
+    args.push("-c:v", "copy");
   }
 
   if (plan.brandingEnabled) {

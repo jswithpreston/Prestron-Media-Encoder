@@ -66,6 +66,11 @@ const ROWS: SettingRow[] = [
     label: "Preset override",
     description: "Override x265 preset (auto = use profile default: medium)",
   },
+  {
+    key: "crfOverride",
+    label: "CRF override",
+    description: "Override CRF (0–51), auto = use profile default",
+  },
 ];
 
 // ---------------------------------------------------------------------------
@@ -89,7 +94,7 @@ function renderValue(key: SettingKey, settings: Settings): string {
 // Value cycling
 // ---------------------------------------------------------------------------
 
-function cycleValue(key: SettingKey, settings: Settings, direction: 1 | -1): Settings {
+export function cycleValue(key: SettingKey, settings: Settings, direction: 1 | -1): Settings {
   const s = { ...settings };
   switch (key) {
     case "mouseEnabled":

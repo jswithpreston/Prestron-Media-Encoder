@@ -16,6 +16,7 @@ import {
   unlinkSync,
   writeFileSync,
   readFileSync,
+  mkdirSync,
   constants,
 } from "node:fs";
 import { createHash } from "node:crypto";
@@ -60,6 +61,13 @@ export function acquireInstanceLock(rootPath: string): InstanceLock {
   const lockDir = join(xdg.log, LOCK_DIR_NAME);
   const lockFile = `${rootPathHash(rootPath)}.lock`;
   const lockPath = join(lockDir, lockFile);
+
+  // Ensure the lock directory exists before atomically creating the lock file.
+  try {
+    mkdirSync(lockDir, { recursive: true });
+  } catch {
+    /* directory may already exist or be uncreatable — openSync below will report */
+  }
 
   let held = false;
   let fd: number | null = null;

@@ -15,8 +15,9 @@
  */
 
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
-import { mkdtemp, mkdir, writeFile, rm } from "node:fs/promises";
+import { mkdtemp, mkdir, rm, readdir } from "node:fs/promises";
 import { tmpdir } from "node:os";
+import { execa } from "execa";
 import pty from "node-pty";
 
 const BIN = `${process.cwd()}/dist/bin/prestron.js`;
@@ -51,11 +52,7 @@ function createPtySession(args: string[]): PtySession {
   };
 }
 
-function waitForOutput(
-  session: PtySession,
-  needle: string,
-  timeoutMs = 15000,
-): Promise<void> {
+function waitForOutput(session: PtySession, needle: string, timeoutMs = 15000): Promise<void> {
   return new Promise((resolve, reject) => {
     const start = Date.now();
     const check = () => {
@@ -65,7 +62,11 @@ function waitForOutput(
         return;
       }
       if (Date.now() - start > timeoutMs) {
-        reject(new Error(`Timed out waiting for output: ${needle}\nOutput so far: ${JSON.stringify(out.slice(-200))}`));
+        reject(
+          new Error(
+            `Timed out waiting for output: ${needle}\nOutput so far: ${JSON.stringify(out.slice(-200))}`,
+          ),
+        );
         return;
       }
       setTimeout(check, 50);
@@ -98,7 +99,11 @@ async function sendAndWaitForRestore(
         return;
       }
       if (Date.now() - start > timeoutMs) {
-        reject(new Error(`Timed out waiting for restoration after input: ${JSON.stringify(input)}\nOutput: ${JSON.stringify(out.slice(-200))}`));
+        reject(
+          new Error(
+            `Timed out waiting for restoration after input: ${JSON.stringify(input)}\nOutput: ${JSON.stringify(out.slice(-200))}`,
+          ),
+        );
         return;
       }
       setTimeout(check, 50);
@@ -113,7 +118,35 @@ describe("PTY terminal restoration", () => {
   beforeAll(async () => {
     tmpDir = await mkdtemp(`${tmpdir()}/prestron-pty-test-XXXXXX`);
     await mkdir(`${tmpDir}/Prestron-Encoded`, { recursive: true });
-    await writeFile(`${tmpDir}/test.mkv`, "dummy");
+    // Generate a real ~15s video so an encode stays active long enough to
+    // interrupt with SIGHUP mid-encode.
+    await execa(
+      "ffmpeg",
+      [
+        "-hide_banner",
+        "-loglevel",
+        "error",
+        "-f",
+        "lavfi",
+        "-i",
+        "testsrc=duration=15:size=640x360:rate=30",
+        "-f",
+        "lavfi",
+        "-i",
+        "sine=frequency=440:duration=15",
+        "-c:v",
+        "libx264",
+        "-crf",
+        "23",
+        "-preset",
+        "ultrafast",
+        "-c:a",
+        "aac",
+        `${tmpDir}/test.mkv`,
+        "-y",
+      ],
+      { stdio: "ignore" },
+    );
   });
 
   afterAll(async () => {
@@ -151,7 +184,11 @@ describe("PTY terminal restoration", () => {
           return;
         }
         if (Date.now() - start > 10000) {
-          reject(new Error(`Timed out waiting for restoration after SIGHUP\nOutput: ${JSON.stringify(out.slice(-200))}`));
+          reject(
+            new Error(
+              `Timed out waiting for restoration after SIGHUP\nOutput: ${JSON.stringify(out.slice(-200))}`,
+            ),
+          );
           return;
         }
         setTimeout(check, 50);
@@ -179,7 +216,11 @@ describe("PTY terminal restoration", () => {
           return;
         }
         if (Date.now() - start > 10000) {
-          reject(new Error(`Timed out waiting for restoration after SIGINT\nOutput: ${JSON.stringify(out.slice(-200))}`));
+          reject(
+            new Error(
+              `Timed out waiting for restoration after SIGINT\nOutput: ${JSON.stringify(out.slice(-200))}`,
+            ),
+          );
           return;
         }
         setTimeout(check, 50);
@@ -211,4 +252,32 @@ describe("PTY terminal restoration", () => {
     expect(endsWithRestoration(output)).toBe(true);
     session.pty.kill();
   }, 30000);
+
+  it("SIGHUP during an active encode kills ffmpeg and removes the .part file", async () => {
+    const session = createPtySession(["encode", tmpDir, "--yes"]);
+
+    // Wait until the encode is actively running (ffmpeg spawned).
+    await waitForOutput(session, "Encoding:", 30000);
+
+    // ffmpeg must be running mid-encode before we hang up the terminal.
+    const before = await execa("pgrep", ["-x", "ffmpeg"], { reject: false });
+    expect(before.stdout.trim()).not.toBe("");
+
+    // Simulate the terminal window being closed (SIGHUP).
+    session.pty.kill("SIGHUP");
+
+    // Give cleanup (SIGTERM ffmpeg, unlink .part) time to run.
+    await new Promise((r) => setTimeout(r, 2000));
+
+    // No ffmpeg process may remain orphaned after the hangup.
+    const after = await execa("pgrep", ["-x", "ffmpeg"], { reject: false });
+    expect(after.stdout.trim()).toBe("");
+
+    // No .part file may be left behind in Prestron-Encoded.
+    const encoded = await readdir(`${tmpDir}/Prestron-Encoded`);
+    const partFiles = encoded.filter((f) => f.endsWith(".part"));
+    expect(partFiles).toHaveLength(0);
+
+    session.pty.kill();
+  }, 40000);
 });

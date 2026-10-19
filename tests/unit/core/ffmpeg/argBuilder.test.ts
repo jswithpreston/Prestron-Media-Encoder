@@ -62,27 +62,39 @@ describe("buildArgs — structure", () => {
     expect(args).toContain("-map_metadata");
   });
 
-  it("contains per-type copy flags (-c:a -c:s -c:t -c:v copy)", () => {
+  it("contains per-type copy flags (-c:a -c:s -c:t copy)", () => {
     const args = buildArgs(makePlan(), caps7);
-    // Every stream type defaults to copy
+    // Non-video streams always default to copy
     expect(args).toContain("-c:a");
     expect(args[args.indexOf("-c:a") + 1]).toBe("copy");
     expect(args).toContain("-c:s");
     expect(args[args.indexOf("-c:s") + 1]).toBe("copy");
     expect(args).toContain("-c:t");
     expect(args[args.indexOf("-c:t") + 1]).toBe("copy");
-    expect(args).toContain("-c:v");
-    expect(args[args.indexOf("-c:v") + 1]).toBe("copy");
     // No bare -c flag
     expect(args).not.toContain("-c");
   });
 
+  it("emits exactly one -c:v (encode action → libx265)", () => {
+    const args = buildArgs(makePlan({ videoAction: "encode" }), caps7);
+    const cvOccurrences = args.filter((a) => a === "-c:v");
+    expect(cvOccurrences).toHaveLength(1);
+    expect(args[args.indexOf("-c:v") + 1]).toBe("libx265");
+  });
+
+  it("emits exactly one -c:v (copy action → copy)", () => {
+    const args = buildArgs(makePlan({ videoAction: "copy" }), caps7);
+    const cvOccurrences = args.filter((a) => a === "-c:v");
+    expect(cvOccurrences).toHaveLength(1);
+    expect(args[args.indexOf("-c:v") + 1]).toBe("copy");
+    expect(args).not.toContain("libx265");
+  });
+
   it("encode action overrides video to libx265 while keeping other streams copy", () => {
     const args = buildArgs(makePlan({ videoAction: "encode" }), caps7);
-    // Last -c:v is the video encode override
-    const lastCvIdx = args.lastIndexOf("-c:v");
-    expect(args[lastCvIdx + 1]).toBe("libx265");
-    // Audio/subtitle/attachment remain copy (first occurrence of each)
+    // The single -c:v is the video encode override
+    expect(args[args.indexOf("-c:v") + 1]).toBe("libx265");
+    // Audio/subtitle/attachment remain copy
     expect(args[args.indexOf("-c:a") + 1]).toBe("copy");
     expect(args[args.indexOf("-c:s") + 1]).toBe("copy");
     expect(args[args.indexOf("-c:t") + 1]).toBe("copy");

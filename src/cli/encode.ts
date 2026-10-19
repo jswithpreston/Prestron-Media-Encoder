@@ -410,6 +410,7 @@ export function makeEncodeCommand(): Command {
             if (existing.size > 0) {
               console.log(`  SKIP (exists): ${basename(plan.outputFile)}`);
               skippedCount++;
+              totalOutputBytes += existing.size;
               if (job.state !== "done") {
                 store.transitionJobState(job.id, job.state, "done", {
                   outputSize: existing.size,
@@ -616,9 +617,7 @@ export function makeEncodeCommand(): Command {
         `Done: ${String(doneCount)}  Failed: ${String(failedCount)}  Skipped: ${String(skippedCount)}`,
       );
       if (doneCount > 0) {
-        console.log(
-          `Total savings: ${formatSavings(totalEstimatedSource, totalOutputBytes)}`,
-        );
+        console.log(`Total savings: ${formatSavings(totalEstimatedSource, totalOutputBytes)}`);
       }
       console.log(`Output folder: ${outputDir}`);
 
