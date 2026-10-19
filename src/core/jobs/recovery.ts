@@ -116,10 +116,7 @@ export async function recoverFolder(
 
     // Terminate any tracked ffmpeg PID still running for a job that was
     // mid-encode when the tool was killed (kill -9 leaves the child orphaned).
-    if (
-      (job.state === "encoding" || job.state === "verifying") &&
-      job.ffmpegPid
-    ) {
+    if ((job.state === "encoding" || job.state === "verifying") && job.ffmpegPid) {
       const terminated = await terminatePid(job.ffmpegPid);
       if (terminated) {
         report.orphanedFfmpegPidsTerminated.push(job.ffmpegPid);

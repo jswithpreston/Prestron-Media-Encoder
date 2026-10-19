@@ -15,6 +15,7 @@ This guide covers manual testing scenarios for Prestron Media Encoder on Linux (
 **Prerequisites:** Built binary (`npm run build`), test directory with media files.
 
 **Steps:**
+
 1. Run `./dist/bin/prestron.js <test-dir>` from a terminal emulator.
 2. Verify the startup banner renders (ASCII logo, version, folder path).
 3. Verify "Detecting FFmpeg…" appears, then "✔ FFmpeg v6.1.1 libx265 ready".
@@ -26,6 +27,7 @@ This guide covers manual testing scenarios for Prestron Media Encoder on Linux (
 ## 2. Guided encode flow
 
 **Steps:**
+
 1. Press `Enter` on the startup screen to open the guided flow.
 2. Verify file checklist appears with all detected media files.
 3. Verify profile options are shown (e.g., "High quality", "Fast", "Compatibility").
@@ -40,6 +42,7 @@ This guide covers manual testing scenarios for Prestron Media Encoder on Linux (
 **Prerequisites:** Running in a real terminal (not piped, not captured).
 
 **Steps:**
+
 1. Launch interactive UI.
 2. Press `q` on the startup screen.
 3. Verify the process exits and the terminal is usable afterward:
@@ -54,6 +57,7 @@ This guide covers manual testing scenarios for Prestron Media Encoder on Linux (
 ## 4. Mouse tracking (GNOME / COSMIC / Alacritty / kitty)
 
 **Steps:**
+
 1. Launch interactive UI with mouse enabled (default).
 2. Move the mouse over the file checklist — verify hover effects or click handling work.
 3. Click a file to toggle selection — verify checkbox changes.
@@ -66,6 +70,7 @@ This guide covers manual testing scenarios for Prestron Media Encoder on Linux (
 ## 5. Non-interactive CLI commands
 
 **Steps:**
+
 1. `./dist/bin/prestron.js --version` — prints version, exits 0.
 2. `./dist/bin/prestron.js scan <test-dir>` — lists detected files, exits 0.
 3. `./dist/bin/prestron.js encode --yes <test-dir>` — encodes without interactive prompts.
@@ -77,6 +82,7 @@ This guide covers manual testing scenarios for Prestron Media Encoder on Linux (
 ## 6. Crash recovery
 
 **Steps:**
+
 1. Start an encode on a directory with multiple files.
 2. While encoding, kill the process (`kill -9 <pid>` or close terminal).
 3. Re-run `./dist/bin/prestron.js <test-dir>`.
@@ -89,6 +95,7 @@ This guide covers manual testing scenarios for Prestron Media Encoder on Linux (
 ## 7. Instance lock (double-run prevention)
 
 **Steps:**
+
 1. Start an interactive session on a directory.
 2. In a second terminal, run `./dist/bin/prestron.js <same-dir>`.
 3. Verify the second instance detects the lock and exits with a clear message.
@@ -100,6 +107,7 @@ This guide covers manual testing scenarios for Prestron Media Encoder on Linux (
 ## 8. FFmpeg missing or wrong version
 
 **Steps:**
+
 1. Temporarily rename or hide `ffmpeg` from PATH.
 2. Run `./dist/bin/prestron.js <test-dir>`.
 3. Verify error message is clear ("FFmpeg not found") and exit code is non-zero.
@@ -110,6 +118,7 @@ This guide covers manual testing scenarios for Prestron Media Encoder on Linux (
 ## 9. Large file handling
 
 **Steps:**
+
 1. Add a large file (>1 GB) to the test directory.
 2. Run encode and verify it completes without disk space issues.
 3. Verify output file is in `Prestron-Encoded/` and is playable.
@@ -119,6 +128,7 @@ This guide covers manual testing scenarios for Prestron Media Encoder on Linux (
 ## 10. Unicode and special characters in filenames
 
 **Steps:**
+
 1. Add files with spaces, unicode characters, and parentheses in names.
 2. Run scan and encode.
 3. Verify all files are processed correctly, outputs have matching names.
@@ -129,14 +139,14 @@ This guide covers manual testing scenarios for Prestron Media Encoder on Linux (
 
 ## Terminal compatibility notes
 
-| Terminal          | Mouse support | Notes                              |
-|-------------------|---------------|------------------------------------|
-| GNOME Terminal    | Yes           | Default on Pop!_OS / Ubuntu        |
-| COSMIC Terminal   | Yes           | Pop!_OS COSMIC default             |
-| Alacritty         | Yes           | SGR 1006 supported                 |
-| kitty             | Yes           | SGR 1006 supported                 |
-| tmux              | Partial       | Requires `set -g mouse on`         |
-| VS Code integrated| No            | Use external terminal for mouse    |
+| Terminal           | Mouse support | Notes                           |
+| ------------------ | ------------- | ------------------------------- |
+| GNOME Terminal     | Yes           | Default on Pop!_OS / Ubuntu     |
+| COSMIC Terminal    | Yes           | Pop!_OS COSMIC default          |
+| Alacritty          | Yes           | SGR 1006 supported              |
+| kitty              | Yes           | SGR 1006 supported              |
+| tmux               | Partial       | Requires `set -g mouse on`      |
+| VS Code integrated | No            | Use external terminal for mouse |
 
 ## Troubleshooting
 

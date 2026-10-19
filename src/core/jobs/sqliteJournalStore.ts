@@ -191,10 +191,7 @@ class SqliteJournalStore implements JournalStore {
     from: JobState,
     to: JobState,
     updates?: Partial<
-      Pick<
-        Job,
-        "error" | "startedAt" | "finishedAt" | "outputSize" | "attempts" | "ffmpegPid"
-      >
+      Pick<Job, "error" | "startedAt" | "finishedAt" | "outputSize" | "attempts" | "ffmpegPid">
     >,
   ): void {
     // Manual transaction: BEGIN → check state → update → COMMIT (or ROLLBACK on error)
