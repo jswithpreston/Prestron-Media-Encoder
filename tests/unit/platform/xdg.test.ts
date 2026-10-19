@@ -75,7 +75,8 @@ describe("getXdgPaths", () => {
   it("returns absolute paths", () => {
     const paths = getXdgPaths();
     for (const p of Object.values(paths)) {
-      expect(isAbsolute(p) || p.startsWith(sep) || /^[A-Z]:/i.test(p)).toBe(true);
+      const checks = [isAbsolute(p), p.startsWith(sep), /^[A-Z]:/i.test(p)];
+      expect(checks.some(Boolean)).toBe(true);
     }
   });
 });
