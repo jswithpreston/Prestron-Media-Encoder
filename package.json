@@ -1,6 +1,6 @@
 {
   "name": "prestron-media-encoder",
-  "version": "0.1.0-alpha.2",
+  "version": "0.1.0-alpha.3",
   "description": "Interactive TUI batch video encoder built on Node 22 and FFmpeg. Auto-classifies movies, series, and anime with strict output verification.",
   "type": "module",
   "engines": {
