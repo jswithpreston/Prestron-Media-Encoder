@@ -1,7 +1,7 @@
 {
   "name": "prestron-media-encoder",
-  "version": "0.1.0-alpha.0",
-  "description": "Interactive CLI tool for batch-encoding movies, TV series and anime to HEVC using FFmpeg — without ever risking your originals.",
+  "version": "0.1.0-alpha.2",
+  "description": "Interactive TUI batch video encoder built on Node 22 and FFmpeg. Auto-classifies movies, series, and anime with strict output verification.",
   "type": "module",
   "engines": {
     "node": ">=22"
@@ -44,12 +44,12 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/PrestonCash/Prestron-Media-Encoder.git"
+    "url": "git+"
   },
   "bugs": {
-    "url": "https://github.com/PrestonCash/Prestron-Media-Encoder/issues"
+    "url": "https://github.com/jswithpreston/Prestron-Media-Encoder/issues"
   },
-  "homepage": "https://github.com/PrestonCash/Prestron-Media-Encoder#readme",
+  "homepage": "https://github.com/jswithpreston/Prestron-Media-Encoder#readme",
   "dependencies": {
     "@inkjs/ui": "^2.0.0",
     "cli-progress": "^3.12.0",
