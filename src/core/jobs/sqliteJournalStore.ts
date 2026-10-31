@@ -6,8 +6,16 @@
  * does not have a `.transaction()` helper like better-sqlite3.
  */
 
-import { DatabaseSync } from "node:sqlite";
+import { createRequire } from "node:module";
+import type { DatabaseSync as DatabaseSyncType } from "node:sqlite";
 import { randomUUID } from "node:crypto";
+import { suppressSqliteExperimentalWarning } from "../../platform/suppressExperimentalWarning.js";
+
+// Ensure SQLite warning filter is installed before loading node:sqlite
+suppressSqliteExperimentalWarning();
+
+const require = createRequire(import.meta.url);
+const { DatabaseSync } = require("node:sqlite") as { DatabaseSync: typeof DatabaseSyncType };
 import {
   StateTransitionError,
   type Batch,

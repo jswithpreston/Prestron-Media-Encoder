@@ -8,6 +8,7 @@ function makeSource(overrides: Partial<CapabilitiesSource> = {}): CapabilitiesSo
     stdinIsTty: false,
     stdoutColumns: 80,
     stdoutRows: 24,
+    platform: "linux",
     ...overrides,
   };
 }
@@ -56,9 +57,28 @@ describe("detectCapabilities — UTF-8 detection", () => {
     expect(caps.isUtf8).toBe(false);
   });
 
-  it("returns false when env is empty", () => {
-    const caps = detectCapabilities(makeSource({ env: {} }));
+  it("returns false when env is empty on linux", () => {
+    const caps = detectCapabilities(makeSource({ env: {}, platform: "linux" }));
     expect(caps.isUtf8).toBe(false);
+  });
+
+  it("detects UTF-8 on Windows when platform is win32", () => {
+    const caps = detectCapabilities(makeSource({ env: {}, platform: "win32" }));
+    expect(caps.isUtf8).toBe(true);
+  });
+
+  it("detects UTF-8 on Windows Terminal via WT_SESSION", () => {
+    const caps = detectCapabilities(
+      makeSource({ env: { WT_SESSION: "some-guid" }, platform: "linux" }),
+    );
+    expect(caps.isUtf8).toBe(true);
+  });
+
+  it("detects UTF-8 in VS Code terminal via TERM_PROGRAM", () => {
+    const caps = detectCapabilities(
+      makeSource({ env: { TERM_PROGRAM: "vscode" }, platform: "linux" }),
+    );
+    expect(caps.isUtf8).toBe(true);
   });
 });
 

@@ -69,3 +69,26 @@ export function Banner({ version, columns, isUtf8, hasColor }: BannerProps): Rea
     </Box>
   );
 }
+
+export interface CompactHeaderProps {
+  version: string;
+  rootDir: string;
+  hasColor?: boolean;
+}
+
+export function CompactHeader({
+  version,
+  rootDir,
+  hasColor = true,
+}: CompactHeaderProps): React.ReactElement {
+  return (
+    <Box marginBottom={1}>
+      <Text bold {...(hasColor ? { color: "cyan" as const } : {})}>
+        PRESTRON
+      </Text>
+      <Text dimColor> v{version}</Text>
+      <Text dimColor> │ </Text>
+      <Text>{rootDir}</Text>
+    </Box>
+  );
+}

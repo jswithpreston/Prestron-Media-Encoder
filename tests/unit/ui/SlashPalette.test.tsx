@@ -23,21 +23,23 @@ function patchStdin(stdin: Record<string, unknown>): void {
 }
 
 describe("SlashPalette — rendering", () => {
-  it("shows all 10 commands with no filter", () => {
+  it("shows all 12 commands with no filter", () => {
     const instance = render(
       React.createElement(SlashPalette, { onCommand: vi.fn(), mouseEnabled: false }),
     );
     patchStdin(instance.stdin as Record<string, unknown>);
     const frame = instance.lastFrame() ?? "";
     const commands = [
-      "/scan",
-      "/analyze",
       "/encode",
+      "/analyze",
+      "/scan",
       "/profile",
       "/resume",
       "/verify",
       "/report",
       "/settings",
+      "/status",
+      "/cancel",
       "/help",
       "/quit",
     ];
@@ -46,14 +48,14 @@ describe("SlashPalette — rendering", () => {
     }
   });
 
-  it("shows Command Palette header and usage hint", () => {
+  it("shows Command Menu header and usage hint", () => {
     const instance = render(
       React.createElement(SlashPalette, { onCommand: vi.fn(), mouseEnabled: false }),
     );
     patchStdin(instance.stdin as Record<string, unknown>);
     const frame = instance.lastFrame() ?? "";
-    expect(frame).toContain("Command Palette");
-    expect(frame).toContain("Esc to close");
+    expect(frame).toContain("Command Menu");
+    expect(frame).toContain("Esc to cancel");
   });
 
   it("highlights first item with ▶ cursor", () => {

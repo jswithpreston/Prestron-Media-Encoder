@@ -27,6 +27,7 @@ export interface CapabilitiesSource {
   stdinIsTty: boolean;
   stdoutColumns: number | undefined;
   stdoutRows: number | undefined;
+  platform?: string;
 }
 
 /**
@@ -43,6 +44,7 @@ function fromProcess(): CapabilitiesSource {
     stdinIsTty: process.stdin.isTTY,
     stdoutColumns: process.stdout.columns,
     stdoutRows: process.stdout.rows,
+    platform: process.platform,
   };
 }
 
@@ -59,8 +61,9 @@ export function detectCapabilities(source?: Partial<CapabilitiesSource>): Termin
   const stdinIsTty = source?.stdinIsTty ?? defaults.stdinIsTty;
   const rawColumns = source?.stdoutColumns ?? defaults.stdoutColumns;
   const rawRows = source?.stdoutRows ?? defaults.stdoutRows;
+  const platform = source?.platform ?? defaults.platform ?? process.platform;
 
-  const isUtf8 = detectUtf8(env);
+  const isUtf8 = detectUtf8(env, platform);
   const hasColor = detectColor(env, stdoutIsTty);
   // When not a TTY, default to 80x24 (safe for plain text output)
   const columns = stdoutIsTty ? (rawColumns ?? 80) : 80;
@@ -77,13 +80,14 @@ export function detectCapabilities(source?: Partial<CapabilitiesSource>): Termin
 }
 
 /**
- * Detect UTF-8 locale from environment variables.
+ * Detect UTF-8 locale from environment variables and platform.
  *
  * Checks LC_ALL, LC_CTYPE, and LANG in order of precedence.
  * If a variable is set, it is authoritative — a non-UTF-8 value stops the search.
  * Returns true only if the first-set variable in precedence order contains UTF-8/utf8.
+ * On Windows (or Windows Terminal/VS Code), defaults to true when LC_* are unset.
  */
-function detectUtf8(env: Record<string, string | undefined>): boolean {
+function detectUtf8(env: Record<string, string | undefined>, platform = process.platform): boolean {
   const candidates = [env["LC_ALL"], env["LC_CTYPE"], env["LANG"]];
   for (const val of candidates) {
     if (val === undefined) {
@@ -93,6 +97,18 @@ function detectUtf8(env: Record<string, string | undefined>): boolean {
     // Variable is set — it is authoritative; return based on its value
     return /utf-?8/i.test(val);
   }
+
+  // On Windows, LC_* / LANG are typically not set. Modern Windows consoles
+  // (Windows Terminal, VS Code terminal, modern Conhost) support UTF-8.
+  if (
+    platform === "win32" ||
+    env["WT_SESSION"] !== undefined ||
+    env["TERM_PROGRAM"] === "vscode" ||
+    env["ConEmuPID"] !== undefined
+  ) {
+    return true;
+  }
+
   return false;
 }
 

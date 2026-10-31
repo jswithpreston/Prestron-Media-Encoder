@@ -18,12 +18,18 @@ import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import { mkdtemp, mkdir, rm, readdir } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { execa } from "execa";
-import pty from "node-pty";
+
+let pty: any = null;
+try {
+  pty = (await import("node-pty")).default;
+} catch {
+  // node-pty not available in environments without native compilation tools
+}
 
 const BIN = `${process.cwd()}/dist/bin/prestron.js`;
 
 interface PtySession {
-  pty: pty.IPty;
+  pty: any;
   getOutput: () => string;
 }
 
@@ -112,7 +118,7 @@ async function sendAndWaitForRestore(
   });
 }
 
-describe("PTY terminal restoration", () => {
+describe.skipIf(!pty)("PTY terminal restoration", () => {
   let tmpDir: string;
 
   beforeAll(async () => {
@@ -232,20 +238,49 @@ describe("PTY terminal restoration", () => {
     session.pty.kill();
   }, 30000);
 
+  it("keeps mouse off at the prompt and enables it only inside an interactive panel", async () => {
+    const session = createPtySession([tmpDir]);
+
+    await waitForOutput(session, "Folder:", 15000);
+
+    // At idle prompt, mouse reporting must NOT be enabled
+    expect(session.getOutput().includes("\x1b[?1006h")).toBe(false);
+
+    // Open profile panel via slash command
+    session.pty.write("/profile\r");
+    await waitForOutput(session, "Select Encoding Profile", 10000);
+
+    // Mouse tracking should now be enabled
+    expect(session.getOutput().includes("\x1b[?1006h")).toBe(true);
+
+    // Close panel with Escape
+    session.pty.write("\x1b");
+    await new Promise((r) => setTimeout(r, 300));
+
+    // Mouse tracking should be disabled after closing panel
+    expect(session.getOutput().includes("\x1b[?1006l")).toBe(true);
+
+    const output = await sendAndWaitForRestore(session, "q");
+    expect(endsWithRestoration(output)).toBe(true);
+    session.pty.kill();
+  }, 30000);
+
   it("accepts mouse SGR sequences and disables mouse tracking on exit", async () => {
     const session = createPtySession([tmpDir]);
 
     await waitForOutput(session, "Folder:", 15000);
 
+    // Open a panel to enable mouse tracking
+    session.pty.write("/profile\r");
+    await waitForOutput(session, "Select Encoding Profile", 10000);
+
     // Send an SGR mouse press event (left button at col 10, row 5).
-    // Ink consumes mouse events (they are not echoed), so we only assert
-    // that terminal restoration still occurs after mouse input was received.
     session.pty.write("\x1b[<37;10;5M");
 
     // Brief delay so the mouse sequence is processed before 'q'
     await new Promise((r) => setTimeout(r, 200));
 
-    const output = await sendAndWaitForRestore(session, "q");
+    const output = await sendAndWaitForRestore(session, "\x1bq");
 
     const mouseDisableIdx = output.lastIndexOf("\x1b[?1006l");
     expect(mouseDisableIdx).toBeGreaterThan(-1);

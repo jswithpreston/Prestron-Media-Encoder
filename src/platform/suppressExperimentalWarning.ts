@@ -46,6 +46,12 @@ export function suppressSqliteExperimentalWarning(): void {
   // Cast to the base EventEmitter interface to avoid the deeply overloaded
   // process.emit signature. At runtime process IS an EventEmitter.
   const emitter = process as unknown as NodeJS.EventEmitter;
+
+  // Prevent multiple nested wrappings if called repeatedly
+  if ((emitter as unknown as { __sqlite_warning_suppressed?: boolean }).__sqlite_warning_suppressed) {
+    return;
+  }
+
   const originalEmit = emitter.emit.bind(emitter);
 
   function patchedEmit(event: string | symbol, ...args: unknown[]): boolean {
@@ -57,14 +63,13 @@ export function suppressSqliteExperimentalWarning(): void {
         (warning as { name?: string }).name === "ExperimentalWarning" &&
         /sqlite/i.test((warning as { message?: string }).message ?? "")
       ) {
-        // One-shot: restore original immediately so other warnings are unaffected
-        emitter.emit = originalEmit;
-        // Return false — warning swallowed, stderr stays clean
+        // Suppress SQLite experimental warning — stderr stays clean
         return false;
       }
     }
     return originalEmit(event, ...args);
   }
 
+  (emitter as unknown as { __sqlite_warning_suppressed?: boolean }).__sqlite_warning_suppressed = true;
   emitter.emit = patchedEmit;
 }

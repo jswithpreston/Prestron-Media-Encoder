@@ -24,6 +24,7 @@ describe("suppressSqliteExperimentalWarning", () => {
       configurable: true,
       writable: true,
     });
+    delete (emitter as unknown as { __sqlite_warning_suppressed?: boolean }).__sqlite_warning_suppressed;
     emitter.emit = savedEmit;
   });
 
@@ -31,6 +32,7 @@ describe("suppressSqliteExperimentalWarning", () => {
     savedNodeVersion = process.versions.node;
     // eslint-disable-next-line @typescript-eslint/unbound-method
     savedEmit = emitter.emit;
+    delete (emitter as unknown as { __sqlite_warning_suppressed?: boolean }).__sqlite_warning_suppressed;
   }
 
   function setNodeVersion(v: string) {
@@ -81,7 +83,7 @@ describe("suppressSqliteExperimentalWarning", () => {
     expect(mockEmit).not.toHaveBeenCalled();
   });
 
-  it("self-removes after the first sqlite warning (one-shot)", () => {
+  it("persists suppression across multiple sqlite warnings", () => {
     captureVersionAndEmit();
     setNodeVersion("22.5.0");
 
@@ -94,10 +96,12 @@ describe("suppressSqliteExperimentalWarning", () => {
     sqliteWarning.name = "ExperimentalWarning";
 
     // First call: suppressed
-    emitter.emit("warning", sqliteWarning);
-    // Second call: emit is restored to mockEmit, so it passes through
-    emitter.emit("warning", sqliteWarning);
-    expect(mockEmit).toHaveBeenCalledTimes(1);
+    const res1 = emitter.emit("warning", sqliteWarning);
+    expect(res1).toBe(false);
+    // Second call: still suppressed (no leak)
+    const res2 = emitter.emit("warning", sqliteWarning);
+    expect(res2).toBe(false);
+    expect(mockEmit).not.toHaveBeenCalled();
   });
 
   it("passes non-sqlite warnings through on Node 22", () => {
