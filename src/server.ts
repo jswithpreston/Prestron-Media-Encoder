@@ -6,11 +6,10 @@
  */
 
 import { createServer } from "node:http";
-import { resolve } from "node:path";
 import { scanDirectory } from "./core/scanner/index.js";
-import { PROFILES, type ProfileName } from "./core/policy/profiles.js";
+import { PROFILES } from "./core/policy/profiles.js";
 
-const PORT = parseInt(process.env["PORT"] || "3000", 10);
+const PORT = parseInt(process.env["PORT"] ?? "3000", 10);
 const HOST = "0.0.0.0";
 const ROOT_DIR = process.cwd();
 
@@ -143,7 +142,7 @@ const HTML = `<!DOCTYPE html>
   <div class="header">
     <div>
       <span class="brand">PRESTRON</span>
-      <span> Media Encoder v0.1.0-alpha.3</span>
+      <span> Media Encoder v0.1.0-alpha.5</span>
     </div>
     <div style="font-size: 12px; color: #8b949e;">Interactive Session UI</div>
   </div>
@@ -155,7 +154,7 @@ const HTML = `<!DOCTYPE html>
 ██╔═══╝ ██╔══██╗██╔══╝  ╚════██║   ██║   ██╔══██╗██║   ██║██║╚██╗██║
 ██║     ██║  ██║███████╗███████║   ██║   ██║  ██║╚██████╔╝██║ ╚████║
 ╚═╝     ╚═╝  ╚═╝╚══════╝╚══════╝   ╚═╝   ╚═╝  ╚═╝ ╚═════╝ ╚═╝  ╚═══╝
-                  Media Encoder  v0.1.0-alpha.3</div>
+                  Media Encoder  v0.1.0-alpha.5</div>
 
     <div class="card" id="startup-card">
       <div class="card-title">Folder: <span id="root-path" style="color: #fff;">${ROOT_DIR}</span></div>
@@ -317,44 +316,46 @@ const HTML = `<!DOCTYPE html>
 </body>
 </html>`;
 
-const server = createServer(async (req, res) => {
-  const url = new URL(req.url || "/", `http://${req.headers.host || "localhost"}`);
+const server = createServer((req, res) => {
+  void (async () => {
+    const url = new URL(req.url ?? "/", `http://${req.headers.host ?? "localhost"}`);
 
-  if (url.pathname === "/api/scan") {
-    try {
-      const scanResult = await scanDirectory(ROOT_DIR);
-      const files = scanResult.files.map((f) => ({
-        path: f.path,
-        name: f.path.split("/").pop() ?? f.path,
-        size: (f.sizeBytes / (1024 * 1024)).toFixed(1) + " MB",
-        res: "1080p",
-        codec: "h264",
-      }));
-      res.writeHead(200, { "Content-Type": "application/json" });
-      res.end(JSON.stringify({ files }));
-    } catch {
-      res.writeHead(200, { "Content-Type": "application/json" });
-      res.end(JSON.stringify({ files: [] }));
+    if (url.pathname === "/api/scan") {
+      try {
+        const scanResult = await scanDirectory(ROOT_DIR);
+        const files = scanResult.files.map((f) => ({
+          path: f.path,
+          name: f.path.split("/").pop() ?? f.path,
+          size: `${(f.sizeBytes / (1024 * 1024)).toFixed(1)} MB`,
+          res: "1080p",
+          codec: "h264",
+        }));
+        res.writeHead(200, { "Content-Type": "application/json" });
+        res.end(JSON.stringify({ files }));
+      } catch {
+        res.writeHead(200, { "Content-Type": "application/json" });
+        res.end(JSON.stringify({ files: [] }));
+      }
+      return;
     }
-    return;
-  }
 
-  if (url.pathname === "/api/status") {
-    res.writeHead(200, { "Content-Type": "application/json" });
-    res.end(JSON.stringify({
-      ok: true,
-      name: "Prestron Media Encoder",
-      version: "0.1.0-alpha.3",
-      rootDir: ROOT_DIR,
-      profiles: Object.keys(PROFILES),
-    }));
-    return;
-  }
+    if (url.pathname === "/api/status") {
+      res.writeHead(200, { "Content-Type": "application/json" });
+      res.end(JSON.stringify({
+        ok: true,
+        name: "Prestron Media Encoder",
+        version: "0.1.0-alpha.5",
+        rootDir: ROOT_DIR,
+        profiles: Object.keys(PROFILES),
+      }));
+      return;
+    }
 
-  res.writeHead(200, { "Content-Type": "text/html; charset=utf-8" });
-  res.end(HTML);
+    res.writeHead(200, { "Content-Type": "text/html; charset=utf-8" });
+    res.end(HTML);
+  })();
 });
 
 server.listen(PORT, HOST, () => {
-  console.log(`[Prestron] Web preview server running at http://${HOST}:${PORT}`);
+  console.log(`[Prestron] Web preview server running at http://${HOST}:${String(PORT)}`);
 });

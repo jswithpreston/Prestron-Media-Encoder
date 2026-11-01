@@ -91,7 +91,7 @@ export function InlineEncodePanel({
         setCursor((c) => Math.min(files.length - 1, c + 1));
         return;
       }
-    } else if (step === "confirm") {
+    } else {
       if (key.escape || input === "n" || input === "N") {
         setStep("checklist");
         return;
@@ -184,7 +184,9 @@ export function InlineEncodePanel({
         const isCursor = actualIdx === cursor;
         const name = basename(f.path);
         const planText = f.plan
-          ? `${f.plan.video.encoder} CRF ${f.plan.video.crf ?? "auto"} preset ${f.plan.video.preset ?? "med"}`
+          ? f.plan.videoAction === "copy"
+            ? "copy (passthrough)"
+            : `${f.plan.profile.codec} CRF ${String(f.plan.profile.crf)} preset ${f.plan.profile.preset}`
           : "auto-plan";
 
         return (

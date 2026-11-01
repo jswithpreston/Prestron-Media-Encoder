@@ -174,7 +174,7 @@ function patchStdin(stdin: any) {
 console.log("=== STATE 1: STARTUP ===");
 const startup = render(
   <Box flexDirection="column">
-    <Banner version="0.1.0-alpha.3" columns={80} isUtf8={true} hasColor={false} />
+    <Banner version="0.1.0-alpha.5" columns={80} isUtf8={true} hasColor={false} />
     <StartupCard
       rootDir="/media/TV/Breaking Bad/Season 1"
       files={mockFiles}
@@ -194,7 +194,7 @@ startup.unmount();
 console.log("\n=== STATE 2: SLASH LIST OPEN ===");
 const slash = render(
   <Box flexDirection="column">
-    <CompactHeader version="0.1.0-alpha.3" rootDir="/media/TV/Breaking Bad/Season 1" />
+    <CompactHeader version="0.1.0-alpha.5" rootDir="/media/TV/Breaking Bad/Season 1" />
     <SlashPalette onCommand={() => {}} mouseEnabled={false} filterQuery="/" />
     <SessionInput onSubmit={() => {}} onSlashTrigger={() => {}} />
     <StatusBar profile="series" fileCount={3} mouseActive={false} />
@@ -210,7 +210,7 @@ slash.unmount();
 console.log("\n=== STATE 3: /ENCODE PANEL ===");
 const encodePanel = render(
   <Box flexDirection="column">
-    <CompactHeader version="0.1.0-alpha.3" rootDir="/media/TV/Breaking Bad/Season 1" />
+    <CompactHeader version="0.1.0-alpha.5" rootDir="/media/TV/Breaking Bad/Season 1" />
     <InlineEncodePanel
       files={mockFiles}
       profile="series"
@@ -232,7 +232,7 @@ encodePanel.unmount();
 console.log("\n=== STATE 4: CONFIRM PROMPT ===");
 const confirmPrompt = render(
   <Box flexDirection="column">
-    <CompactHeader version="0.1.0-alpha.3" rootDir="/media/TV/Breaking Bad/Season 1" />
+    <CompactHeader version="0.1.0-alpha.5" rootDir="/media/TV/Breaking Bad/Season 1" />
     <Box
       flexDirection="column"
       borderStyle="round"
@@ -271,7 +271,7 @@ const activeFileInProgress = {
 };
 const encoding = render(
   <Box flexDirection="column">
-    <CompactHeader version="0.1.0-alpha.3" rootDir="/media/TV/Breaking Bad/Season 1" />
+    <CompactHeader version="0.1.0-alpha.5" rootDir="/media/TV/Breaking Bad/Season 1" />
     <LiveProgressLine
       activeFile={activeFileInProgress}
       currentIndex={0}
@@ -314,7 +314,7 @@ const resultsData = [
 ];
 const results = render(
   <Box flexDirection="column">
-    <CompactHeader version="0.1.0-alpha.3" rootDir="/media/TV/Breaking Bad/Season 1" />
+    <CompactHeader version="0.1.0-alpha.5" rootDir="/media/TV/Breaking Bad/Season 1" />
     <ResultsTable
       results={resultsData}
       outputDir="/media/TV/Breaking Bad/Season 1/Prestron-Encoded"
@@ -333,7 +333,7 @@ results.unmount();
 console.log("\n=== STATE 7: EMPTY FOLDER ===");
 const emptyFolder = render(
   <Box flexDirection="column">
-    <Banner version="0.1.0-alpha.3" columns={80} isUtf8={true} hasColor={false} />
+    <Banner version="0.1.0-alpha.5" columns={80} isUtf8={true} hasColor={false} />
     <StartupCard
       rootDir="/media/EmptyDir"
       files={[]}

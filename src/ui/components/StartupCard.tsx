@@ -18,7 +18,7 @@ export interface StartupCardProps {
 }
 
 function formatBytes(bytes: number): string {
-  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024) return `${String(bytes)} B`;
   const kb = bytes / 1024;
   if (kb < 1024) return `${kb.toFixed(1)} KB`;
   const mb = kb / 1024;
@@ -61,9 +61,9 @@ export function StartupCard({
           {displayedFiles.map((f, i) => {
             const name = basename(f.path);
             const res = f.mediaInfo?.video
-              ? `${f.mediaInfo.video.width}x${f.mediaInfo.video.height}`
+              ? `${String(f.mediaInfo.video.width)}x${String(f.mediaInfo.video.height)}`
               : "unknown";
-            const codec = f.mediaInfo?.video?.codec ?? "unknown";
+            const codec = f.mediaInfo?.video.codec ?? "unknown";
             const size = formatBytes(f.sourceSizeBytes);
 
             return (

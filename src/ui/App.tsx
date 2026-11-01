@@ -22,7 +22,6 @@ import React, { useState, useCallback, useEffect, useRef } from "react";
 import { Box, Text, Static, useApp } from "ink";
 import { execa } from "execa";
 import { basename, join, resolve } from "node:path";
-import { readdir, unlink } from "node:fs/promises";
 
 import { restoreTerminal, enableMouse, disableMouse } from "../platform/terminal.js";
 import { detectCapabilities as detectTerminal } from "../platform/capabilities.js";
@@ -32,10 +31,9 @@ import {
   type ProcessRunner,
 } from "../core/ffmpeg/capabilities.js";
 import { openJournalStore } from "../core/jobs/journalDb.js";
-import { verifyOutput } from "../core/verify/index.js";
 import { PROFILES, type ProfileName } from "../core/policy/profiles.js";
 
-import { useBatch, type BatchFile } from "./hooks/useBatch.js";
+import { useBatch } from "./hooks/useBatch.js";
 import { useTerminalSize } from "./hooks/useTerminalSize.js";
 
 import { Banner, CompactHeader } from "./components/Banner.js";
@@ -140,13 +138,13 @@ export function App({
 
   // Push an item to <Static> scrollback
   const appendLog = useCallback((renderFn: () => React.ReactElement) => {
-    const id = `item-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+    const id = `item-${String(Date.now())}-${Math.random().toString(36).slice(2, 7)}`;
     setStaticItems((prev) => [...prev, { id, render: renderFn }]);
   }, []);
 
   // Mouse reporting lifecycle: off by default, enabled only when activePanel != null
   const mouseAllowed = mouseEnabled && settings.mouseEnabled;
-  const mouseActive = Boolean(activePanel !== null && mouseAllowed);
+  const mouseActive = activePanel !== null && mouseAllowed;
 
   useEffect(() => {
     if (mouseActive) {
@@ -172,7 +170,7 @@ export function App({
         hasColor={termCaps.hasColor}
       />
     ));
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  }, []);
 
   // 2. FFmpeg detection & initial folder scan
   useEffect(() => {
@@ -182,9 +180,7 @@ export function App({
         return startScan(rootDir).then(() => caps);
       })
       .then((caps) => {
-        if (caps) {
-          applyProfile(currentProfile, caps);
-        }
+        applyProfile(currentProfile, caps);
       })
       .catch((err: unknown) => {
         appendLog(() => (
@@ -195,7 +191,7 @@ export function App({
           </Box>
         ));
       });
-  }, [ffmpegPath]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [ffmpegPath]);
 
   // 3. When initial scan finishes, append startup info card to <Static>
   const initialCardShownRef = useRef(false);
@@ -351,7 +347,7 @@ export function App({
                   <Box key={i} flexDirection="column" marginY={0}>
                     <Text bold color="white">{basename(f.path)}</Text>
                     <Text dimColor>
-                      {"  "}Target: {f.plan ? `${f.plan.video.encoder} CRF ${f.plan.video.crf ?? "auto"} preset ${f.plan.video.preset ?? "med"}` : "Unplanned"}
+                      {"  "}Target: {f.plan ? (f.plan.videoAction === "copy" ? "copy (passthrough)" : `${f.plan.profile.codec} CRF ${String(f.plan.profile.crf)} preset ${f.plan.profile.preset}`) : "Unplanned"}
                     </Text>
                   </Box>
                 ))

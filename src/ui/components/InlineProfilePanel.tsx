@@ -15,10 +15,10 @@ export interface InlineProfilePanelProps {
 }
 
 const PROFILE_ITEMS: { name: ProfileName; desc: string }[] = [
-  { name: "series", desc: `CRF ${PROFILES.series.crf}, ${PROFILES.series.preset} — General TV series and episodic content` },
-  { name: "movie", desc: `CRF ${PROFILES.movie.crf}, ${PROFILES.movie.preset} — High quality, no-sao for grain preservation` },
-  { name: "anime", desc: `CRF ${PROFILES.anime.crf}, ${PROFILES.anime.preset} — Optimized for animation and 2D lines` },
-  { name: "conservative", desc: `CRF ${PROFILES.conservative.crf}, ${PROFILES.conservative.preset} — Near-lossless, minimal artifacting` },
+  { name: "series", desc: `CRF ${String(PROFILES.series.crf)}, ${PROFILES.series.preset} — General TV series and episodic content` },
+  { name: "movie", desc: `CRF ${String(PROFILES.movie.crf)}, ${PROFILES.movie.preset} — High quality, no-sao for grain preservation` },
+  { name: "anime", desc: `CRF ${String(PROFILES.anime.crf)}, ${PROFILES.anime.preset} — Optimized for animation and 2D lines` },
+  { name: "conservative", desc: `CRF ${String(PROFILES.conservative.crf)}, ${PROFILES.conservative.preset} — Near-lossless, minimal artifacting` },
 ];
 
 export function InlineProfilePanel({

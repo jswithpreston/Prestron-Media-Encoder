@@ -15,7 +15,10 @@ import { suppressSqliteExperimentalWarning } from "../../platform/suppressExperi
 suppressSqliteExperimentalWarning();
 
 const require = createRequire(import.meta.url);
-const { DatabaseSync } = require("node:sqlite") as { DatabaseSync: typeof DatabaseSyncType };
+const sqliteModule = require("node:sqlite") as {
+  DatabaseSync: new (path: string) => DatabaseSyncType;
+};
+const DatabaseSync = sqliteModule.DatabaseSync;
 import {
   StateTransitionError,
   type Batch,
@@ -70,7 +73,7 @@ CREATE INDEX IF NOT EXISTS idx_jobs_state ON jobs(state);
 // ---------------------------------------------------------------------------
 
 class SqliteJournalStore implements JournalStore {
-  private readonly db: DatabaseSync;
+  private readonly db: DatabaseSyncType;
 
   constructor(dbPath: string) {
     this.db = new DatabaseSync(dbPath);
