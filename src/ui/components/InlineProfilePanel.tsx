@@ -93,7 +93,7 @@ export function InlineProfilePanel({
             <Text bold color={isCursor ? "cyan" : "gray"}>
               {isCursor ? "▶ " : "  "}
             </Text>
-            <Text bold color={isCurrent ? "green" : undefined}>
+            <Text bold {...(isCurrent ? { color: "green" as const } : {})}>
               {item.name.padEnd(14)}
             </Text>
             <Text dimColor>{item.desc}</Text>

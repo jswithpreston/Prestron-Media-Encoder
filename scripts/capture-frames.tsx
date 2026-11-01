@@ -23,15 +23,13 @@ import { InlineEncodePanel } from "../src/ui/components/InlineEncodePanel.js";
 import { LiveProgressLine } from "../src/ui/components/LiveProgressLine.js";
 import { ResultsTable } from "../src/ui/components/ResultsTable.js";
 import type { BatchFile } from "../src/ui/hooks/useBatch.js";
+import type { FfmpegCapabilities } from "../src/core/ffmpeg/capabilities.js";
 
-const mockFfmpegCaps = {
-  version: "7.0-static",
-  libx265Available: true,
-  nvencAvailable: true,
-  qsvAvailable: false,
-  vaapiAvailable: false,
-  vmafAvailable: true,
-  supportedPixFmts: ["yuv420p", "yuv420p10le"],
+const mockFfmpegCaps: FfmpegCapabilities = {
+  version: { major: 7, minor: 0, patch: 0, raw: "7.0-static" },
+  hasLibx265: true,
+  fpsModeFlag: "-fps_mode",
+  fpsModeValue: "passthrough",
 };
 
 const mockFiles: BatchFile[] = [

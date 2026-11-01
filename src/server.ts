@@ -9,7 +9,7 @@ import { createServer } from "node:http";
 import { scanDirectory } from "./core/scanner/index.js";
 import { PROFILES } from "./core/policy/profiles.js";
 
-const PORT = parseInt(process.env["PORT"] ?? "3000", 10);
+const PORT = 3000;
 const HOST = "0.0.0.0";
 const ROOT_DIR = process.cwd();
 

@@ -87,7 +87,7 @@ export function detectCapabilities(source?: Partial<CapabilitiesSource>): Termin
  * Returns true only if the first-set variable in precedence order contains UTF-8/utf8.
  * On Windows (or Windows Terminal/VS Code), defaults to true when LC_* are unset.
  */
-function detectUtf8(env: Record<string, string | undefined>, platform = process.platform): boolean {
+function detectUtf8(env: Record<string, string | undefined>, platform: string = process.platform): boolean {
   const candidates = [env["LC_ALL"], env["LC_CTYPE"], env["LANG"]];
   for (const val of candidates) {
     if (val === undefined) {

@@ -89,7 +89,7 @@ export function StartupCard({
         <Text bold color="cyan">FFmpeg: </Text>
         {ffmpegCaps ? (
           <Text color="green">
-            v{ffmpegCaps.version} (libx265: ready{ffmpegCaps.nvencAvailable ? ", nvenc: ready" : ""})
+            v{ffmpegCaps.version.raw} (libx265: {ffmpegCaps.hasLibx265 ? "ready" : "missing"})
           </Text>
         ) : (
           <Text dimColor>checking capabilities…</Text>

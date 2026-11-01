@@ -66,15 +66,15 @@ export interface BatchState {
 }
 
 export interface BatchOptions {
-  profile?: ProfileName;
-  crfOverride?: number;
-  presetOverride?: string;
-  force?: boolean;
-  overwrite?: boolean;
-  brandingEnabled?: boolean;
-  ffmpegPath?: string;
-  ffprobePath?: string;
-  mouseEnabled?: boolean;
+  profile?: ProfileName | undefined;
+  crfOverride?: number | undefined;
+  presetOverride?: string | undefined;
+  force?: boolean | undefined;
+  overwrite?: boolean | undefined;
+  brandingEnabled?: boolean | undefined;
+  ffmpegPath?: string | undefined;
+  ffprobePath?: string | undefined;
+  mouseEnabled?: boolean | undefined;
 }
 
 export interface UseBatchReturn {

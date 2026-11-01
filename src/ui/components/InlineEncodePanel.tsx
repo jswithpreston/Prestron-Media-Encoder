@@ -197,7 +197,7 @@ export function InlineEncodePanel({
             <Text color={isSelected ? "green" : "gray"}>
               {isSelected ? "[✔] " : "[ ] "}
             </Text>
-            <Text bold={isCursor} color={isCursor ? "white" : undefined}>
+            <Text bold={isCursor} {...(isCursor ? { color: "white" as const } : {})}>
               {name.padEnd(28).slice(0, 28)}{" "}
             </Text>
             <Text dimColor>({planText})</Text>
