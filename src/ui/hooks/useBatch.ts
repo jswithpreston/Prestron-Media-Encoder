@@ -80,7 +80,7 @@ export interface BatchOptions {
 export interface UseBatchReturn {
   state: BatchState;
   /** Scan rootDir and probe all files. */
-  startScan: (rootDir: string) => Promise<void>;
+  startScan: (rootDir: string) => Promise<BatchFile[]>;
   /** Apply a profile to all planned files (or rebuild plans if already done). */
   applyProfile: (profile: ProfileName, caps: FfmpegCapabilities) => void;
   /** Start encoding the files at the given indices. */
@@ -141,7 +141,7 @@ export function useBatch(options: BatchOptions = {}): UseBatchReturn {
   // startScan
   // -------------------------------------------------------------------------
 
-  const startScan = useCallback(async (rootDir: string) => {
+  const startScan = useCallback(async (rootDir: string): Promise<BatchFile[]> => {
     setState((s) => ({
       ...s,
       phase: "scanning",
@@ -219,12 +219,14 @@ export function useBatch(options: BatchOptions = {}): UseBatchReturn {
         phase: "ready",
         files: batchFiles,
       }));
+      return batchFiles;
     } catch (err) {
       setState((s) => ({
         ...s,
         phase: "error",
         error: err instanceof Error ? err.message : String(err),
       }));
+      return [];
     }
   }, []);
 
@@ -236,9 +238,11 @@ export function useBatch(options: BatchOptions = {}): UseBatchReturn {
     setState((s) => {
       const updatedFiles = s.files.map((f) => {
         if (!f.mediaInfo) return f;
+        const parentDir = dirname(f.path);
+        const parentDirName = basename(parentDir);
         const classification = classify({
           filePath: f.path,
-          parentDirName: dirname(f.path).split("/").pop() ?? "",
+          parentDirName,
           parsedEpisode: null,
           mediaInfo: f.mediaInfo,
         });

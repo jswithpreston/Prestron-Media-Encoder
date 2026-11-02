@@ -1,18 +1,11 @@
 /**
- * SlashPalette — filterable command palette triggered by typing "/".
+ * SlashPalette — in-session popup command menu triggered by "/" above input.
  *
- * Supported commands:
- *   /encode, /analyze, /scan, /profile, /resume, /verify, /report,
- *   /settings, /status, /cancel, /help, /quit
- *
- * Keyboard:
- *   Type        — filter commands
- *   ↑/↓         — move selection cursor
- *   Tab / Enter — execute / complete selected command
- *   Esc         — dismiss palette
+ * Supports keyboard navigation (↑/↓), Tab completion, Enter confirmation,
+ * Esc to cancel, and optional SGR mouse clicks.
  */
 
-import React, { useState, useCallback } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { Box, Text, useInput } from "ink";
 import { useMouse, type MouseEvent } from "../hooks/useMouse.js";
 
@@ -38,7 +31,7 @@ export interface CommandDef {
 export const ALL_COMMANDS: CommandDef[] = [
   { name: "encode", description: "Start encoding selected files" },
   { name: "analyze", description: "Show plan and reasons per file" },
-  { name: "scan", description: "Rescan the current folder" },
+  { name: "scan", description: "Rescan the current folder or a specified path" },
   { name: "profile", description: "Choose encoding profile" },
   { name: "resume", description: "Continue an interrupted batch" },
   { name: "verify", description: "Re-verify files in Prestron-Encoded" },
@@ -52,37 +45,58 @@ export const ALL_COMMANDS: CommandDef[] = [
 
 export interface SlashPaletteProps {
   onCommand: (cmd: SlashCommand | null) => void;
-  mouseEnabled?: boolean;
-  filterQuery?: string;
+  onComplete?: ((cmd: SlashCommand) => void) | undefined;
+  mouseEnabled?: boolean | undefined;
+  filterQuery?: string | undefined;
 }
 
 export function SlashPalette({
   onCommand,
+  onComplete,
   mouseEnabled = false,
   filterQuery = "",
 }: SlashPaletteProps): React.ReactElement {
-  const [internalQuery, setInternalQuery] = useState(filterQuery);
   const [cursor, setCursor] = useState(0);
 
-  const query = internalQuery.startsWith("/") ? internalQuery.slice(1) : internalQuery;
+  const rawQuery = filterQuery.startsWith("/") ? filterQuery.slice(1) : filterQuery;
+  const normQuery = rawQuery.toLowerCase().replace(/^analyse/, "analyze");
 
   const filtered = ALL_COMMANDS.filter(
     (c) =>
-      query === "" ||
-      c.name.toLowerCase().startsWith(query.toLowerCase()) ||
-      c.description.toLowerCase().includes(query.toLowerCase()),
+      normQuery === "" ||
+      c.name.toLowerCase().startsWith(normQuery) ||
+      (c.name === "analyze" && "analyse".startsWith(normQuery)) ||
+      c.description.toLowerCase().includes(normQuery),
   );
+
+  useEffect(() => {
+    setCursor(0);
+  }, [filterQuery]);
 
   const confirm = useCallback(
     (idx: number) => {
       const cmd = filtered[idx];
       if (cmd) {
         onCommand(cmd.name);
-      } else if (query === "") {
+      } else {
         onCommand(null);
       }
     },
-    [filtered, query, onCommand],
+    [filtered, onCommand],
+  );
+
+  const complete = useCallback(
+    (idx: number) => {
+      const cmd = filtered[idx];
+      if (cmd) {
+        if (onComplete) {
+          onComplete(cmd.name);
+        } else {
+          onCommand(cmd.name);
+        }
+      }
+    },
+    [filtered, onComplete, onCommand],
   );
 
   useInput((input, key) => {
@@ -91,7 +105,12 @@ export function SlashPalette({
       return;
     }
 
-    if (key.return || key.tab) {
+    if (key.tab) {
+      complete(cursor);
+      return;
+    }
+
+    if (key.return) {
       confirm(cursor);
       return;
     }
@@ -104,17 +123,6 @@ export function SlashPalette({
     if (key.downArrow || input === "j") {
       setCursor((c) => Math.min(Math.max(0, filtered.length - 1), c + 1));
       return;
-    }
-
-    if (key.backspace || key.delete) {
-      setInternalQuery((q) => q.slice(0, -1));
-      setCursor(0);
-      return;
-    }
-
-    if (input.length === 1 && !key.ctrl && !key.meta) {
-      setInternalQuery((q) => q + input);
-      setCursor(0);
     }
   });
 
@@ -138,33 +146,29 @@ export function SlashPalette({
 
   return (
     <Box flexDirection="column" borderStyle="round" borderColor="cyan" paddingX={1} marginBottom={1}>
-      <Box marginBottom={1}>
-        <Text bold color="cyan">Command Menu</Text>
-        <Text dimColor> (↑/↓ to navigate, Tab/Enter to choose, Esc to cancel)</Text>
+      <Text bold color="cyan">
+        Command Menu (↑/↓ to navigate, Tab to autocomplete, Enter to choose, Esc to cancel)
+      </Text>
+      <Box flexDirection="column" marginY={1}>
+        {filtered.length === 0 ? (
+          <Text dimColor>No commands matching "{filterQuery}"</Text>
+        ) : (
+          filtered.map((cmd, idx) => {
+            const isSelected = idx === cursor;
+            return (
+              <Box key={cmd.name}>
+                <Text bold color={isSelected ? "cyan" : "gray"}>
+                  {isSelected ? "▶ " : "  "}
+                </Text>
+                <Text bold color={isSelected ? "cyan" : "white"}>
+                  {`/${cmd.name}`.padEnd(12)}
+                </Text>
+                <Text dimColor>{cmd.description}</Text>
+              </Box>
+            );
+          })
+        )}
       </Box>
-
-      {query !== "" && (
-        <Box marginBottom={1}>
-          <Text color="cyan">/{query}</Text>
-          <Text color="cyan">█</Text>
-        </Box>
-      )}
-
-      {filtered.length === 0 ? (
-        <Text dimColor>No matching commands</Text>
-      ) : (
-        filtered.map((cmd, i) => (
-          <Box key={cmd.name}>
-            <Text
-              {...(i === cursor ? { color: "cyan" as const, bold: true } : { dimColor: true })}
-            >
-              {i === cursor ? "▶ " : "  "}
-              {`/${cmd.name}`.padEnd(12)}
-            </Text>
-            <Text dimColor={i !== cursor}>{cmd.description}</Text>
-          </Box>
-        ))
-      )}
     </Box>
   );
 }

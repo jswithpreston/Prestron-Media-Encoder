@@ -102,6 +102,7 @@ export function App({
   const [activePanel, setActivePanel] = useState<ActivePanel>(null);
   const [slashOpen, setSlashOpen] = useState(false);
   const [slashQuery, setSlashQuery] = useState("");
+  const [commandInput, setCommandInput] = useState("");
   const [commandHistory, setCommandHistory] = useState<string[]>([]);
   const [staticItems, setStaticItems] = useState<StaticItem[]>([]);
 
@@ -262,19 +263,19 @@ export function App({
           <Text dimColor>&gt; /scan {resolved}</Text>
         </Box>
       ));
-      await startScan(resolved);
+      const scannedFiles = await startScan(resolved);
       if (ffmpegCaps) {
         applyProfile(currentProfile, ffmpegCaps);
       }
       appendLog(() => (
         <StartupCard
           rootDir={resolved}
-          files={batchState.files}
+          files={scannedFiles}
           ffmpegCaps={ffmpegCaps}
         />
       ));
     },
-    [startScan, ffmpegCaps, currentProfile, applyProfile, batchState.files, appendLog],
+    [startScan, ffmpegCaps, currentProfile, applyProfile, appendLog],
   );
 
   const handleEncodeConfirm = useCallback(
@@ -285,7 +286,7 @@ export function App({
       appendLog(() => (
         <Box>
           <Text color="cyan">&gt; /encode </Text>
-          <Text dimColor>({selectedPaths.length} files selected)</Text>
+          <Text dimColor>({String(selectedPaths.length)} files selected)</Text>
         </Box>
       ));
 
@@ -337,23 +338,62 @@ export function App({
           break;
 
         case "analyze":
-          appendLog(() => (
-            <Box flexDirection="column" marginY={1} borderStyle="single" borderColor="blue" paddingX={1}>
-              <Text bold color="blue">File Analysis &amp; Plans:</Text>
-              {batchState.files.length === 0 ? (
-                <Text dimColor>No files analyzed. Run /scan first.</Text>
-              ) : (
-                batchState.files.map((f, i) => (
-                  <Box key={i} flexDirection="column" marginY={0}>
-                    <Text bold color="white">{basename(f.path)}</Text>
-                    <Text dimColor>
-                      {"  "}Target: {f.plan ? (f.plan.videoAction === "copy" ? "copy (passthrough)" : `${f.plan.profile.codec} CRF ${String(f.plan.profile.crf)} preset ${f.plan.profile.preset}`) : "Unplanned"}
-                    </Text>
+          appendLog(() => {
+            if (batchState.phase === "scanning" || batchState.phase === "probing") {
+              return (
+                <Box marginY={1}>
+                  <Text color="yellow">Scanning and probing files in progress... please wait a moment.</Text>
+                </Box>
+              );
+            }
+            if (batchState.files.length === 0) {
+              return (
+                <Box marginY={1} borderStyle="single" borderColor="blue" paddingX={1} flexDirection="column">
+                  <Text bold color="blue">File Analysis &amp; Plans:</Text>
+                  <Text dimColor>No video files found in {rootDir}. Run /scan &lt;folder&gt; first.</Text>
+                </Box>
+              );
+            }
+
+            const reencodeCount = batchState.files.filter((f) => f.plan?.videoAction === "encode").length;
+            const copyCount = batchState.files.filter((f) => f.plan?.videoAction === "copy").length;
+
+            const DISPLAY_LIMIT = 8;
+            const shownFiles = batchState.files.slice(0, DISPLAY_LIMIT);
+            const remainingCount = batchState.files.length - shownFiles.length;
+
+            return (
+              <Box flexDirection="column" marginY={1} borderStyle="single" borderColor="blue" paddingX={1}>
+                <Text bold color="blue">File Analysis &amp; Plans ({String(batchState.files.length)} files):</Text>
+                <Text dimColor>Profile: {currentProfile} │ {String(reencodeCount)} to re-encode, {String(copyCount)} to copy passthrough</Text>
+                <Box marginY={0} />
+                {shownFiles.map((f, i) => {
+                  const name = basename(f.path);
+                  const isCopy = f.plan?.videoAction === "copy";
+                  const targetDesc = f.plan
+                    ? isCopy
+                      ? "copy (passthrough — no quality loss)"
+                      : `${f.plan.profile.codec} CRF ${String(f.plan.profile.crf)} preset ${f.plan.profile.preset}`
+                    : "Analyzing...";
+                  const reason = f.plan?.reasons[0] ?? "";
+                  return (
+                    <Box key={i} flexDirection="column" marginY={0}>
+                      <Box>
+                        <Text bold color="white">{name}</Text>
+                        <Text color={isCopy ? "green" : "cyan"}> → {targetDesc}</Text>
+                      </Box>
+                      {reason !== "" && <Text dimColor>  ↳ {reason}</Text>}
+                    </Box>
+                  );
+                })}
+                {remainingCount > 0 && (
+                  <Box marginTop={1}>
+                    <Text dimColor>… and {String(remainingCount)} more files (run /encode to inspect full interactive checklist)</Text>
                   </Box>
-                ))
-              )}
-            </Box>
-          ));
+                )}
+              </Box>
+            );
+          });
           break;
 
         case "scan":
@@ -488,18 +528,32 @@ export function App({
   const handleCommandSubmit = useCallback(
     (input: string) => {
       setCommandHistory((prev) => [...prev, input]);
+      setCommandInput("");
+      setSlashOpen(false);
 
       if (input.startsWith("/")) {
-        const parts = input.slice(1).split(" ");
-        const cmdName = (parts[0] ?? "").toLowerCase() as SlashCommand;
-        const arg = parts.slice(1).join(" ");
+        const withoutSlash = input.slice(1).trim();
+        const firstSpace = withoutSlash.indexOf(" ");
+        const rawCmd = (firstSpace === -1 ? withoutSlash : withoutSlash.slice(0, firstSpace)).toLowerCase();
+        let arg = (firstSpace === -1 ? "" : withoutSlash.slice(firstSpace + 1)).trim();
+        // Strip enclosing quotes from paths (e.g. "C:\Path with spaces" -> C:\Path with spaces)
+        arg = arg.replace(/^["']|["']$/g, "").trim();
 
-        if (cmdName === "scan" && arg) {
-          void handleStartScan(arg);
+        if (rawCmd === "scan") {
+          if (arg) {
+            void handleStartScan(arg);
+          } else {
+            void handleStartScan(rootDir);
+          }
           return;
         }
 
-        if (cmdName === "profile" && arg && (arg in PROFILES)) {
+        if (rawCmd === "analyze" || rawCmd === "analyse") {
+          handleSlashCommand("analyze");
+          return;
+        }
+
+        if (rawCmd === "profile" && arg && (arg in PROFILES)) {
           setCurrentProfile(arg as ProfileName);
           if (ffmpegCaps) {
             applyProfile(arg as ProfileName, ffmpegCaps);
@@ -510,7 +564,7 @@ export function App({
           return;
         }
 
-        handleSlashCommand(cmdName);
+        handleSlashCommand(rawCmd as SlashCommand);
         return;
       }
 
@@ -534,7 +588,7 @@ export function App({
         </Box>
       ));
     },
-    [handleSlashCommand, handleStartScan, ffmpegCaps, applyProfile, appendLog],
+    [handleSlashCommand, handleStartScan, ffmpegCaps, applyProfile, appendLog, rootDir],
   );
 
   // Ctrl+C Handling:
@@ -660,7 +714,19 @@ export function App({
       {/* 6. Slash command palette */}
       {slashOpen && (
         <SlashPalette
-          onCommand={handleSlashCommand}
+          onCommand={(cmd) => {
+            if (cmd) {
+              setSlashOpen(false);
+              setCommandInput("");
+              handleSlashCommand(cmd);
+            } else {
+              setSlashOpen(false);
+            }
+          }}
+          onComplete={(cmd) => {
+            setSlashOpen(false);
+            setCommandInput(`/${cmd} `);
+          }}
           filterQuery={slashQuery}
           mouseEnabled={mouseActive}
         />
@@ -668,10 +734,15 @@ export function App({
 
       {/* 7. Persistent bordered input prompt */}
       <SessionInput
+        value={commandInput}
+        onChange={setCommandInput}
         onSubmit={handleCommandSubmit}
         onSlashTrigger={(q) => {
           setSlashQuery(q);
           setSlashOpen(true);
+        }}
+        onSlashClose={() => {
+          setSlashOpen(false);
         }}
         onEscape={() => {
           setSlashOpen(false);
