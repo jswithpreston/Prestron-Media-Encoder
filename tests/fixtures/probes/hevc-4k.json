@@ -1,0 +1,35 @@
+{
+  "streams": [
+    {
+      "index": 0,
+      "codec_type": "video",
+      "codec_name": "hevc",
+      "profile": "Main 10",
+      "level": 150,
+      "width": 3840,
+      "height": 2160,
+      "r_frame_rate": "60/1",
+      "avg_frame_rate": "60/1",
+      "pix_fmt": "yuv420p10le",
+      "bits_per_raw_sample": "10",
+      "bit_rate": "22000000",
+      "field_order": "progressive"
+    },
+    {
+      "index": 1,
+      "codec_type": "audio",
+      "codec_name": "aac",
+      "channels": 6,
+      "bit_rate": "384000",
+      "tags": { "language": "eng" }
+    }
+  ],
+  "chapters": [],
+  "format": {
+    "filename": "hevc-4k.mp4",
+    "format_name": "mov,mp4",
+    "duration": "100.000000",
+    "size": "280000000",
+    "bit_rate": "22400000"
+  }
+}

@@ -12,6 +12,9 @@ import { useMouse, type MouseEvent } from "../hooks/useMouse.js";
 export type SlashCommand =
   | "encode"
   | "analyze"
+  | "files"
+  | "info"
+  | "calibrate"
   | "scan"
   | "profile"
   | "resume"
@@ -31,6 +34,9 @@ export interface CommandDef {
 export const ALL_COMMANDS: CommandDef[] = [
   { name: "encode", description: "Start encoding selected files" },
   { name: "analyze", description: "Show plan and reasons per file" },
+  { name: "files", description: "Browse all files with estimates & recommendations" },
+  { name: "info", description: "Deep inspection of streams, reasons & settings" },
+  { name: "calibrate", description: "Run quick 20s sample encode to measure real compression ratio" },
   { name: "scan", description: "Rescan the current folder or a specified path" },
   { name: "profile", description: "Choose encoding profile" },
   { name: "resume", description: "Continue an interrupted batch" },

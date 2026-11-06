@@ -19,6 +19,7 @@ const sqliteModule = require("node:sqlite") as {
   DatabaseSync: new (path: string) => DatabaseSyncType;
 };
 const DatabaseSync = sqliteModule.DatabaseSync;
+import type { MediaInfo } from "../probe/index.js";
 import {
   StateTransitionError,
   type Batch,
@@ -26,6 +27,7 @@ import {
   type Job,
   type JobState,
   type JournalStore,
+  type EncodeHistoryRecord,
 } from "./journalStore.js";
 
 // ---------------------------------------------------------------------------
@@ -66,6 +68,36 @@ CREATE TABLE IF NOT EXISTS jobs (
 
 CREATE INDEX IF NOT EXISTS idx_jobs_batch ON jobs(batch_id);
 CREATE INDEX IF NOT EXISTS idx_jobs_state ON jobs(state);
+
+CREATE TABLE IF NOT EXISTS probe_cache (
+  path        TEXT PRIMARY KEY,
+  size        INTEGER NOT NULL,
+  mtime_ms    INTEGER NOT NULL,
+  probe_json  TEXT NOT NULL,
+  probed_at   INTEGER NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_probe_cache_lookup ON probe_cache(path, size, mtime_ms);
+
+CREATE TABLE IF NOT EXISTS encode_history (
+  id                      TEXT PRIMARY KEY,
+  source_path             TEXT NOT NULL,
+  source_size_bytes       INTEGER NOT NULL,
+  output_size_bytes       INTEGER NOT NULL,
+  source_codec            TEXT NOT NULL,
+  target_codec            TEXT NOT NULL,
+  profile_name            TEXT NOT NULL,
+  crf                     INTEGER NOT NULL,
+  preset                  TEXT NOT NULL,
+  bpp                     REAL NOT NULL,
+  duration_secs           REAL NOT NULL,
+  encode_duration_ms      INTEGER NOT NULL,
+  compression_ratio       REAL NOT NULL,
+  video_compression_ratio REAL NOT NULL,
+  timestamp               INTEGER NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_encode_history_lookup ON encode_history(source_codec, profile_name);
 `;
 
 // ---------------------------------------------------------------------------
@@ -256,6 +288,105 @@ class SqliteJournalStore implements JournalStore {
   pragma(name: string): unknown {
     const row = this.db.prepare(`PRAGMA ${name}`).get() as Record<string, unknown> | undefined;
     return row !== undefined ? Object.values(row)[0] : undefined;
+  }
+
+  getCachedProbe(filePath: string, sizeBytes: number, mtimeMs: number): MediaInfo | null {
+    const row = this.db
+      .prepare(`SELECT probe_json, size, mtime_ms FROM probe_cache WHERE path = ?`)
+      .get(filePath) as { probe_json: string; size: number; mtime_ms: number } | undefined;
+    if (!row) return null;
+    if (row.size !== sizeBytes || row.mtime_ms !== mtimeMs) {
+      this.db.prepare(`DELETE FROM probe_cache WHERE path = ?`).run(filePath);
+      return null;
+    }
+    try {
+      return JSON.parse(row.probe_json) as MediaInfo;
+    } catch {
+      return null;
+    }
+  }
+
+  cacheProbe(mediaInfo: MediaInfo, mtimeMs: number): void {
+    const json = JSON.stringify(mediaInfo);
+    this.db
+      .prepare(
+        `INSERT OR REPLACE INTO probe_cache (path, size, mtime_ms, probe_json, probed_at)
+         VALUES (?, ?, ?, ?, ?)`,
+      )
+      .run(mediaInfo.path, mediaInfo.sizeBytes, mtimeMs, json, Date.now());
+  }
+
+  recordEncodeHistory(record: EncodeHistoryRecord): void {
+    const id = record.id ?? randomUUID();
+    this.db
+      .prepare(
+        `INSERT INTO encode_history (
+           id, source_path, source_size_bytes, output_size_bytes,
+           source_codec, target_codec, profile_name, crf, preset,
+           bpp, duration_secs, encode_duration_ms,
+           compression_ratio, video_compression_ratio, timestamp
+         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      )
+      .run(
+        id,
+        record.sourcePath,
+        record.sourceSizeBytes,
+        record.outputSizeBytes,
+        record.sourceCodec,
+        record.targetCodec,
+        record.profileName,
+        record.crf,
+        record.preset,
+        record.bpp,
+        record.durationSecs,
+        record.encodeDurationMs,
+        record.compressionRatio,
+        record.videoCompressionRatio,
+        record.timestamp,
+      );
+  }
+
+  getEncodeHistory(
+    sourceCodec?: string,
+    profileName?: string,
+    limit = 50,
+  ): EncodeHistoryRecord[] {
+    let sql = `SELECT * FROM encode_history`;
+    const clauses: string[] = [];
+    const params: (string | number)[] = [];
+
+    if (sourceCodec) {
+      clauses.push(`source_codec = ?`);
+      params.push(sourceCodec.toLowerCase());
+    }
+    if (profileName) {
+      clauses.push(`profile_name = ?`);
+      params.push(profileName);
+    }
+    if (clauses.length > 0) {
+      sql += ` WHERE ` + clauses.join(" AND ");
+    }
+    sql += ` ORDER BY timestamp DESC LIMIT ?`;
+    params.push(limit);
+
+    const rows = this.db.prepare(sql).all(...params) as Record<string, unknown>[];
+    return rows.map((row) => ({
+      id: String(row["id"]),
+      sourcePath: String(row["source_path"]),
+      sourceSizeBytes: Number(row["source_size_bytes"]),
+      outputSizeBytes: Number(row["output_size_bytes"]),
+      sourceCodec: String(row["source_codec"]),
+      targetCodec: String(row["target_codec"]),
+      profileName: String(row["profile_name"]),
+      crf: Number(row["crf"]),
+      preset: String(row["preset"]),
+      bpp: Number(row["bpp"]),
+      durationSecs: Number(row["duration_secs"]),
+      encodeDurationMs: Number(row["encode_duration_ms"]),
+      compressionRatio: Number(row["compression_ratio"]),
+      videoCompressionRatio: Number(row["video_compression_ratio"]),
+      timestamp: Number(row["timestamp"]),
+    }));
   }
 
   close(): void {

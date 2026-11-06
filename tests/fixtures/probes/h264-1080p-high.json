@@ -1,0 +1,51 @@
+{
+  "streams": [
+    {
+      "index": 0,
+      "codec_type": "video",
+      "codec_name": "h264",
+      "profile": "High",
+      "level": 41,
+      "width": 1920,
+      "height": 1080,
+      "r_frame_rate": "24000/1001",
+      "avg_frame_rate": "24000/1001",
+      "pix_fmt": "yuv420p",
+      "bit_rate": "12000000",
+      "color_transfer": "bt709",
+      "color_primaries": "bt709",
+      "color_space": "bt709",
+      "display_aspect_ratio": "16:9",
+      "sample_aspect_ratio": "1:1",
+      "field_order": "progressive"
+    },
+    {
+      "index": 1,
+      "codec_type": "audio",
+      "codec_name": "aac",
+      "channels": 2,
+      "channel_layout": "stereo",
+      "sample_rate": "48000",
+      "bit_rate": "192000",
+      "tags": { "language": "eng", "title": "English Stereo" },
+      "disposition": { "default": 1, "forced": 0 }
+    },
+    {
+      "index": 2,
+      "codec_type": "subtitle",
+      "codec_name": "subrip",
+      "tags": { "language": "eng" },
+      "disposition": { "default": 1, "forced": 0 }
+    }
+  ],
+  "chapters": [],
+  "format": {
+    "filename": "h264-1080p-high.mp4",
+    "format_name": "mov,mp4,m4a,3gp,3g2,mj2",
+    "format_long_name": "QuickTime / MOV",
+    "duration": "120.000000",
+    "size": "183180000",
+    "bit_rate": "12212000",
+    "tags": { "encoder": "Lavf60.16.100" }
+  }
+}

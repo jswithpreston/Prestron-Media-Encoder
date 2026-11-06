@@ -1,0 +1,33 @@
+{
+  "streams": [
+    {
+      "index": 0,
+      "codec_type": "video",
+      "codec_name": "mpeg2video",
+      "profile": "Main",
+      "level": 4,
+      "width": 1920,
+      "height": 1080,
+      "r_frame_rate": "30000/1001",
+      "avg_frame_rate": "30000/1001",
+      "pix_fmt": "yuv420p",
+      "bit_rate": "14000000",
+      "field_order": "tt"
+    },
+    {
+      "index": 1,
+      "codec_type": "audio",
+      "codec_name": "ac3",
+      "channels": 6,
+      "bit_rate": "384000"
+    }
+  ],
+  "chapters": [],
+  "format": {
+    "filename": "broadcast_capture.ts",
+    "format_name": "mpegts",
+    "duration": "60.000000",
+    "size": "107880000",
+    "bit_rate": "14384000"
+  }
+}

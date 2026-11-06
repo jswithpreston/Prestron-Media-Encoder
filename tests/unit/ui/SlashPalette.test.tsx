@@ -23,7 +23,7 @@ function patchStdin(stdin: Record<string, unknown>): void {
 }
 
 describe("SlashPalette — rendering", () => {
-  it("shows all 12 commands with no filter", () => {
+  it("shows all 15 commands with no filter", () => {
     const instance = render(
       React.createElement(SlashPalette, { onCommand: vi.fn(), mouseEnabled: false }),
     );
@@ -32,6 +32,9 @@ describe("SlashPalette — rendering", () => {
     const commands = [
       "/encode",
       "/analyze",
+      "/files",
+      "/info",
+      "/calibrate",
       "/scan",
       "/profile",
       "/resume",

@@ -1,0 +1,34 @@
+{
+  "streams": [
+    {
+      "index": 0,
+      "codec_type": "video",
+      "codec_name": "h264",
+      "profile": "High 10",
+      "width": 1920,
+      "height": 1080,
+      "r_frame_rate": "24/1",
+      "avg_frame_rate": "24/1",
+      "pix_fmt": "yuv420p10le",
+      "bits_per_raw_sample": "10",
+      "bit_rate": "6000000",
+      "field_order": "progressive"
+    },
+    {
+      "index": 1,
+      "codec_type": "audio",
+      "codec_name": "flac",
+      "channels": 2,
+      "bit_rate": "800000",
+      "tags": { "language": "jpn" }
+    }
+  ],
+  "chapters": [],
+  "format": {
+    "filename": "h264-10bit.mkv",
+    "format_name": "matroska",
+    "duration": "1420.000000",
+    "size": "1207000000",
+    "bit_rate": "6800000"
+  }
+}

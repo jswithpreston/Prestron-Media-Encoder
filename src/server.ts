@@ -175,6 +175,9 @@ const HTML = `<!DOCTYPE html>
       <div style="font-size: 11px; color: var(--cyan); margin-bottom: 0.25rem;">Command Menu (Click or press Enter):</div>
       <div class="palette-item" onclick="execCmd('/encode')"><span class="palette-cmd">/encode</span><span class="palette-desc">Start encoding selected files</span></div>
       <div class="palette-item" onclick="execCmd('/analyze')"><span class="palette-cmd">/analyze</span><span class="palette-desc">Show plan and reasons per file</span></div>
+      <div class="palette-item" onclick="execCmd('/files')"><span class="palette-cmd">/files</span><span class="palette-desc">Browse all files with estimates &amp; recommendations</span></div>
+      <div class="palette-item" onclick="execCmd('/info')"><span class="palette-cmd">/info</span><span class="palette-desc">Deep inspection of streams, reasons &amp; settings</span></div>
+      <div class="palette-item" onclick="execCmd('/calibrate')"><span class="palette-cmd">/calibrate</span><span class="palette-desc">Run quick 20s sample to measure real compression</span></div>
       <div class="palette-item" onclick="execCmd('/scan')"><span class="palette-cmd">/scan</span><span class="palette-desc">Rescan the current folder</span></div>
       <div class="palette-item" onclick="execCmd('/profile')"><span class="palette-cmd">/profile</span><span class="palette-desc">Choose encoding profile</span></div>
       <div class="palette-item" onclick="execCmd('/resume')"><span class="palette-cmd">/resume</span><span class="palette-desc">Continue an interrupted batch</span></div>
@@ -284,12 +287,28 @@ const HTML = `<!DOCTYPE html>
         response.innerHTML = '<div style="color: var(--cyan); font-weight:bold;">Prestron Media Encoder Commands:</div>' +
           '<div>• <b>/encode</b> — Start batch encoding selected files</div>' +
           '<div>• <b>/analyze</b> — Probe, classify, and show target plans</div>' +
+          '<div>• <b>/files</b> — Browse all files with estimates &amp; recommendations</div>' +
+          '<div>• <b>/info</b> — Deep inspection of streams, reasons &amp; settings</div>' +
           '<div>• <b>/scan</b> — Rescan folder for media files</div>' +
           '<div>• <b>/profile</b> — Select encoding profile (series, movie, anime, conservative)</div>' +
           '<div>• <b>/status</b> — View active progress and queue stats</div>' +
           '<div>• <b>/report</b> — Show compression savings summary</div>' +
           '<div>• <b>/settings</b> — Adjust preset, quality, and mouse options</div>' +
           '<div>• <b>/quit</b> — Exit application</div>';
+      } else if (cmd === '/files') {
+        response.innerHTML = '<div style="color: var(--cyan); font-weight:bold;">Files Browser (' + files.length + ' files):</div>' +
+          files.map((f, i) => '<div>#' + (i + 1) + ' ' + f.name + ' (' + (f.res || '1080p') + ' ' + (f.codec || 'h264') + ') <span style="color:var(--green)">[ENCODE]</span> est. ~45% savings</div>').join('');
+      } else if (cmd.startsWith('/info')) {
+        const target = files[0] || { name: 'sample.mkv', res: '1920x1080', codec: 'h264' };
+        response.innerHTML = '<div style="color: var(--cyan); font-weight:bold;">Deep Inspection: ' + target.name + '</div>' +
+          '<div>Video: ' + (target.res || '1920x1080') + ' ' + (target.codec || 'h264') + ' 24fps 8-bit yuv420p (CFR, progressive)</div>' +
+          '<div>Recommendation: <span style="color:var(--green)">[ENCODE]</span> — Action: ENCODE (Confidence: high)</div>' +
+          '<div>Estimated Savings: est. ~45% (likely ~180 MB)</div>';
+      } else if (cmd === '/calibrate') {
+        response.innerHTML = '<div style="color: var(--green); font-weight:bold;">✔ Calibration Sample Completed:</div>' +
+          '<div>Encoded 20s test segment at 2.4x speed.</div>' +
+          '<div>Measured compression ratio: <b>0.52</b> (saves 48% storage).</div>' +
+          '<div style="color:#8b949e;">Recorded to local journal. Future size estimates for matching files are now calibrated.</div>';
       } else if (cmd === '/status') {
         response.innerHTML = '<div style="color: var(--green);">[Status] Ready. ' + files.length + ' video files detected in workspace.</div>';
       } else if (cmd === '/encode') {

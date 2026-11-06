@@ -17,7 +17,8 @@ import { basename, dirname } from "node:path";
 import { mkdir, rename, stat, unlink } from "node:fs/promises";
 import { execa } from "execa";
 import { scanDirectory } from "../../core/scanner/index.js";
-import { probeFile, type MediaInfo } from "../../core/probe/index.js";
+import { type MediaInfo } from "../../core/probe/index.js";
+import { probeBatch } from "../../core/probe/batchProbe.js";
 import { classify } from "../../core/classifier/index.js";
 import { buildPlan, type EncodePlan } from "../../core/policy/planBuilder.js";
 import { buildArgs } from "../../core/ffmpeg/argBuilder.js";
@@ -63,6 +64,8 @@ export interface BatchState {
   hasUnfinishedBatch: boolean;
   /** Recovery log messages from startup. */
   recoveryMessages: string[];
+  /** Progress during ffprobe scanning/probing phase. */
+  probeProgress?: { probed: number; total: number } | null | undefined;
 }
 
 export interface BatchOptions {
@@ -152,9 +155,9 @@ export function useBatch(options: BatchOptions = {}): UseBatchReturn {
 
     try {
       // Recovery check
-      const store = openJournalStore();
-      const recovery = await recoverFolder(store, rootDir);
-      const hasUnfinishedBatch = store.getActiveBatch(rootDir) !== undefined;
+      const recoveryStore = openJournalStore();
+      const recovery = await recoverFolder(recoveryStore, rootDir);
+      const hasUnfinishedBatch = recoveryStore.getActiveBatch(rootDir) !== undefined;
       const recoveryMessages: string[] = [];
       for (const p of recovery.stalePartFilesRemoved) {
         recoveryMessages.push(`Removed stale .part: ${basename(p)}`);
@@ -162,7 +165,7 @@ export function useBatch(options: BatchOptions = {}): UseBatchReturn {
       for (const p of recovery.jobsRequeued) {
         recoveryMessages.push(`Re-queued: ${basename(p)}`);
       }
-      store.close();
+      recoveryStore.close();
 
       setState((s) => ({
         ...s,
@@ -174,50 +177,60 @@ export function useBatch(options: BatchOptions = {}): UseBatchReturn {
       // Scan
       const scanResult = await scanDirectory(rootDir);
 
-      // Probe each file
+      // Probe each file with bounded concurrency (4) and probe caching
       const runner = makeExecaRunner(optionsRef.current.ffprobePath ?? "ffprobe");
-      const batchFiles: BatchFile[] = [];
+      const store = openJournalStore();
+      let probeItems;
+      try {
+        probeItems = await probeBatch(scanResult.files, runner, {
+          journalStore: store,
+          concurrency: 4,
+          ffprobeBinary: optionsRef.current.ffprobePath ?? "ffprobe",
+          timeoutMs: 30_000,
+          onProgress: (probed, total) => {
+            setState((s) => ({
+              ...s,
+              probeProgress: { probed, total },
+            }));
+          },
+        });
+      } finally {
+        store.close();
+      }
 
-      for (const scannedFile of scanResult.files) {
-        let mediaInfo: MediaInfo;
-        try {
-          mediaInfo = await probeFile(scannedFile.path, runner, {
-            ffprobeBinary: optionsRef.current.ffprobePath ?? "ffprobe",
-            timeoutMs: 30_000,
-          });
-        } catch (err) {
-          // Non-fatal: add a failed stub
-          batchFiles.push({
-            path: scannedFile.path,
-            sourceSizeBytes: scannedFile.sizeBytes,
-            sourceMtimeMs: scannedFile.mtimeMs,
+      const batchFiles: BatchFile[] = probeItems.map((item) => {
+        if (!item.mediaInfo) {
+          return {
+            path: item.scannedFile.path,
+            sourceSizeBytes: item.scannedFile.sizeBytes,
+            sourceMtimeMs: item.scannedFile.mtimeMs,
             mediaInfo: null,
             plan: null,
             phase: "failed",
             progress: null,
             outputSizeBytes: null,
-            error: err instanceof Error ? err.message : String(err),
-          });
-          continue;
+            error: item.error ?? "Probe failed",
+          };
         }
 
-        batchFiles.push({
-          path: scannedFile.path,
-          sourceSizeBytes: scannedFile.sizeBytes,
-          sourceMtimeMs: scannedFile.mtimeMs,
-          mediaInfo,
+        return {
+          path: item.scannedFile.path,
+          sourceSizeBytes: item.scannedFile.sizeBytes,
+          sourceMtimeMs: item.scannedFile.mtimeMs,
+          mediaInfo: item.mediaInfo,
           plan: null,
           phase: "pending",
           progress: null,
           outputSizeBytes: null,
           error: null,
-        });
-      }
+        };
+      });
 
       setState((s) => ({
         ...s,
         phase: "ready",
         files: batchFiles,
+        probeProgress: null,
       }));
       return batchFiles;
     } catch (err) {
@@ -360,6 +373,7 @@ export function useBatch(options: BatchOptions = {}): UseBatchReturn {
         store.transitionJobState(job.id, "pending", "encoding", { startedAt: Date.now() });
 
         // Encode
+        const encodeStartTime = Date.now();
         const args = buildArgs(plan, caps);
         let encodeResult;
         try {
@@ -470,6 +484,32 @@ export function useBatch(options: BatchOptions = {}): UseBatchReturn {
         await rename(plan.partFile, plan.outputFile);
         const outStat = await stat(plan.outputFile);
         const outputSizeBytes = outStat.size;
+
+        // Record into empirical history table for calibration
+        const nonVideoBytes = Math.min(mediaInfo.sizeBytes, Math.max(0, mediaInfo.nonVideoSizeBytes));
+        const inputVideoBytes = Math.max(1, mediaInfo.sizeBytes - nonVideoBytes);
+        const outputVideoBytes = Math.max(0, outputSizeBytes - nonVideoBytes);
+
+        try {
+          store.recordEncodeHistory({
+            sourcePath: mediaInfo.path,
+            sourceSizeBytes: mediaInfo.sizeBytes,
+            outputSizeBytes,
+            sourceCodec: mediaInfo.video.codec,
+            targetCodec: plan.profile.codec,
+            profileName: plan.profile.name,
+            crf: plan.profile.crf,
+            preset: plan.profile.preset,
+            bpp: mediaInfo.video.bpp,
+            durationSecs: mediaInfo.durationSecs,
+            encodeDurationMs: Date.now() - encodeStartTime,
+            compressionRatio: Number((outputSizeBytes / mediaInfo.sizeBytes).toFixed(3)),
+            videoCompressionRatio: Number((outputVideoBytes / inputVideoBytes).toFixed(3)),
+            timestamp: Date.now(),
+          });
+        } catch {
+          /* ignore history record error */
+        }
 
         setState((s) => {
           const files = [...s.files];

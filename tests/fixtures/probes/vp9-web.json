@@ -1,0 +1,32 @@
+{
+  "streams": [
+    {
+      "index": 0,
+      "codec_type": "video",
+      "codec_name": "vp9",
+      "profile": "Profile 0",
+      "width": 1920,
+      "height": 1080,
+      "r_frame_rate": "30/1",
+      "avg_frame_rate": "30/1",
+      "pix_fmt": "yuv420p",
+      "bit_rate": "1800000",
+      "field_order": "progressive"
+    },
+    {
+      "index": 1,
+      "codec_type": "audio",
+      "codec_name": "opus",
+      "channels": 2,
+      "bit_rate": "128000"
+    }
+  ],
+  "chapters": [],
+  "format": {
+    "filename": "vp9-web.webm",
+    "format_name": "matroska,webm",
+    "duration": "120.000000",
+    "size": "29000000",
+    "bit_rate": "1933000"
+  }
+}

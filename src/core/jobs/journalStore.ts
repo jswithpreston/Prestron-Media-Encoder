@@ -7,6 +7,8 @@
  *   by implementing this interface and passing it to the batch runner.
  */
 
+import type { MediaInfo } from "../probe/index.js";
+
 export type JobState =
   "pending" | "encoding" | "verifying" | "done" | "failed" | "skipped" | "interrupted";
 
@@ -37,6 +39,24 @@ export interface Job {
   outputSize?: number;
   /** PID of the ffmpeg child process while this job is encoding (set at runtime). */
   ffmpegPid?: number;
+}
+
+export interface EncodeHistoryRecord {
+  id?: string;
+  sourcePath: string;
+  sourceSizeBytes: number;
+  outputSizeBytes: number;
+  sourceCodec: string;
+  targetCodec: string;
+  profileName: string;
+  crf: number;
+  preset: string;
+  bpp: number;
+  durationSecs: number;
+  encodeDurationMs: number;
+  compressionRatio: number; // outputSizeBytes / sourceSizeBytes
+  videoCompressionRatio: number; // (outputSizeBytes - nonVideo) / (sourceSizeBytes - nonVideo)
+  timestamp: number;
 }
 
 export interface JournalStore {
@@ -98,6 +118,22 @@ export interface JournalStore {
    * @internal exposed for testing only
    */
   pragma(name: string): unknown;
+
+  /** Retrieve a cached MediaInfo probe result if path, size, and mtime match. */
+  getCachedProbe(path: string, sizeBytes: number, mtimeMs: number): MediaInfo | null;
+
+  /** Cache a MediaInfo probe result for a file. */
+  cacheProbe(mediaInfo: MediaInfo, mtimeMs: number): void;
+
+  /** Record a completed encode result in the empirical history table. */
+  recordEncodeHistory(record: EncodeHistoryRecord): void;
+
+  /** Query historical encode records matching a codec family, bpp bucket, and profile. */
+  getEncodeHistory(
+    sourceCodec?: string,
+    profileName?: string,
+    limit?: number,
+  ): EncodeHistoryRecord[];
 
   /** Close the underlying database connection. */
   close(): void;
